@@ -4,7 +4,14 @@
 
 # CMake
 /src/cmake-build-debug
+/src/argos3_triangulation/old_cmake_lists.txt
 
 # Lost files
 .catkin_workspace
 output.txt
+
+# IDE Specific
+.idea
+
+# OS Specific
+.DS_Store
