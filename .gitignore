@@ -1,0 +1,10 @@
+# Compiled folders
+/build
+/devel
+
+# CMake
+/src/cmake-build-debug
+
+# Lost files
+.catkin_workspace
+output.txt
