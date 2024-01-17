@@ -1,5 +1,5 @@
 /* Include the controller definition */
-#include "test_controller.h"
+#include "triangulation_controller.h"
 /* Function definitions for XML parsing */
 #include <argos3/core/utility/configuration/argos_configuration.h>
 /* 2D vector definition */
@@ -8,7 +8,7 @@
 /****************************************/
 /****************************************/
 
-CFootBotDiffusion::CFootBotDiffusion() :
+CFootBotTriangulation::CFootBotTriangulation() :
         m_pcWheels(nullptr),
         m_pcProximity(nullptr),
         m_pcRangeAndBearingSensor(nullptr),
@@ -23,7 +23,86 @@ CFootBotDiffusion::CFootBotDiffusion() :
 /****************************************/
 /****************************************/
 
-void CFootBotDiffusion::Init(TConfigurationNode &t_node) {
+void CFootBotTriangulation::InitROS() {
+    //get e-puck ID
+    std::stringstream name;
+    name.str("");
+    name << GetId(); // fbX
+
+    //init ROS
+    if (!ros::isInitialized()) {
+        char **argv = NULL;
+        int argc = 0;
+        ros::init(argc, argv, name.str());
+    }
+
+    //ROS access node
+    ros::NodeHandle node;
+
+    std::stringstream publisherName;
+
+    publisherName << name.str() << "/distance_matrix";
+
+    // Register the publisher to the ROS master
+    m_matrixPublisher = node.advertise<tri_msgs::Agent>(publisherName.str(), 10);
+
+    // Prefill Messages
+    m_matrixMessage.header.frame_id = publisherName.str();
+    m_matrixMessage.agent_id = (uint8_t) GetId()[2];
+    m_matrixMessage.translate = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+
+    // Define Matrix Dimensions (constant for now)
+    std_msgs::MultiArrayDimension dim_1;
+    std_msgs::MultiArrayDimension dim_2;
+
+    dim_1.label = "row";
+    dim_1.size = 10;
+    dim_1.stride = 10 * 10;
+
+    dim_2.label = "column";
+    dim_2.size = 10;
+    dim_2.stride = 10;
+
+    m_matrixMessage.distance_matrix.layout.dim.push_back(dim_1);
+    m_matrixMessage.distance_matrix.layout.dim.push_back(dim_2);
+    m_matrixMessage.distance_matrix.layout.data_offset = 0;
+}
+
+void CFootBotTriangulation::ControlStepROS() {
+    if (ros::ok()) {
+        std::stringstream name;
+        name.str("");
+        name << GetId()[2];
+
+        /* Fill in a message and publish using the publisher node */
+        m_matrixMessage.header.stamp = ros::Time::now();
+
+        // Add the matrix
+        tri_msgs::Item item;
+
+        // TODO: optimize data update, avoid creating everything from scratch each time
+        m_matrixMessage.distance_matrix.data.clear();
+
+        // Access and print the elements of the matrix
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                item.discount = m_distanceMatrix[i][j].first;
+                item.distance = m_distanceMatrix[i][j].second;
+                m_matrixMessage.distance_matrix.data.push_back(item);
+            }
+        }
+
+        m_matrixPublisher.publish(m_matrixMessage);
+
+        //update ROS status
+        ros::spinOnce();
+    }
+}
+
+/****************************************/
+/****************************************/
+
+void CFootBotTriangulation::Init(TConfigurationNode &t_node) {
     // Get sensor/actuator handles
     m_pcWheels = GetActuator<CCI_DifferentialSteeringActuator>("differential_steering");
     m_pcProximity = GetSensor<CCI_FootBotProximitySensor>("footbot_proximity");
@@ -46,6 +125,8 @@ void CFootBotDiffusion::Init(TConfigurationNode &t_node) {
     // Resize the matrix to the specified number of rows and columns
     m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
 
+    InitROS();
+
 //    for (int i = 0; i < numRows; ++i) {
 //        for (int j = 0; j < numCols; ++j) {
 //            float distance = 0.0f; // Replace with your actual distance value
@@ -66,7 +147,14 @@ void CFootBotDiffusion::Init(TConfigurationNode &t_node) {
 /****************************************/
 /****************************************/
 
-void CFootBotDiffusion::Reset() {
+DistanceMatrix *CFootBotTriangulation::GetDistanceMatrix() {
+    return &m_distanceMatrix;
+}
+
+/****************************************/
+/****************************************/
+
+void CFootBotTriangulation::Reset() {
     // Reset the matrix to the specified number of rows and columns
     int numRows = 10; // Set your desired number of rows
     int numCols = 10; // Set your desired number of columns
@@ -78,7 +166,7 @@ void CFootBotDiffusion::Reset() {
 /****************************************/
 /****************************************/
 
-void CFootBotDiffusion::ControlStep() {
+void CFootBotTriangulation::ControlStep() {
     /* Simulate Communication */
 
     /** Initiator */
@@ -90,40 +178,26 @@ void CFootBotDiffusion::ControlStep() {
     // Get readings from range and bearing sensor
     const CCI_RangeAndBearingSensor::TReadings &tPackets = m_pcRangeAndBearingSensor->GetReadings();
 
-    uint8_t buffer[1] = {'\0'};
-
-    uint8_t initiator_id[1] = {'\0'};
-    uint8_t responder_id[1] = {'\0'};
+    UInt8 initiator_id;
+    UInt8 responder_id;
 
     if (!tPackets.empty()) {
         size_t un_SelectedPacket = CRandom::CreateRNG("argos")->Uniform(CRange<UInt32>(0, tPackets.size()));
 
-        for (size_t j = 0; j < tPackets[un_SelectedPacket].Data.Size(); ++j) {
-            buffer[0] = (uint8_t) tPackets[un_SelectedPacket].Data[j];
-            if (buffer[0] == '\0') {
-                continue; // Skip null characters, avoid losing time
-            }
+        CByteArray data = tPackets[un_SelectedPacket].Data;
 
-            if (j == 0 && buffer[0] == 'A') {
-                // Consider all messages received as requested messages (since don't simulate the polling message)
-                initiator_id[0] = (uint8_t) GetId()[2];
-                buffer[0] = '\0';
-            } else if (j == 1 && buffer[0] != (uint8_t) GetId()[2]) {
-                // Avoid receiving messages from itself
-                responder_id[0] = buffer[0];
-                buffer[0] = '\0';
-            }
-        }
+        data >> initiator_id;
+        data >> responder_id;
 
         // Update the distance matrix
-        int x = 0;
-        int y = 0;
-        int i = 0;
-        int j = 0;
-        if (initiator_id[0] != '\0' && responder_id[0] != '\0') {
+        int x;
+        int y;
+        int i;
+        int j;
+        if (initiator_id != '\0' && responder_id != '\0') {
             // Find indexes of initiator and responder using - '0'
-            i = (int) initiator_id[0] - '0';
-            j = (int) responder_id[0] - '0';
+            i = (int) GetId()[2] - '0';
+            j = (int) responder_id - '0';
 
             if (i < j) {
                 x = i;
@@ -136,23 +210,21 @@ void CFootBotDiffusion::ControlStep() {
             // Update the distance matrix
             m_distanceMatrix[x][y] = std::make_pair(tPackets[un_SelectedPacket].Range, 1);
         }
+
+        if (GetId()[2] == '0') {
+            float range;
+
+            for (int k = 0; k < 10; ++k) {
+                data >> range;
+                std::cout << "Data " << k + 1 << ": " << range << std::endl;
+            }
+        }
     }
 
-    // Print the distance matrix if id = 0
-//    if (GetId()[2] == '5') {
-//        for (int i = 0; i < m_distanceMatrix.size(); ++i) {
-//            for (int j = 0; j < m_distanceMatrix[i].size(); ++j) {
-//                std::cout << "(" << m_distanceMatrix[i][j].first << ", " << m_distanceMatrix[i][j].second << ") ";
-//            }
-//            std::cout << std::endl;
-//        }
-//        std::cout << "------------------------------------" << std::endl;
-//    }
-
-    // Reset buffers
-    buffer[0] = '\0';
-    initiator_id[0] = '\0';
-    responder_id[0] = '\0';
+    // TODO: add information on robot matrices
+    //      => send information on distance matrix
+    //      => parse information of other agents
+    //  Idea : Start easy by sending only information the robot knows about (its range infos)
 
     /** Responder */
     /*  Note: only simulating the sending of the acknowledgment message, which is sent by the responder
@@ -166,31 +238,32 @@ void CFootBotDiffusion::ControlStep() {
      * 3. TODO: Information (distance matrix update)
      */
     CByteArray cMessage;
-    cMessage << (uint8_t) 'A';          // ID of sender ('A' is the broadcast ID)
-    cMessage << (uint8_t) GetId()[2];   // ID of receiver
+    cMessage << (UInt8) 'A';          // ID of sender ('A' is the broadcast ID)
+    cMessage << (UInt8) GetId()[2];   // ID of receiver
+
+    int agent_id = (int) GetId()[2] - '0';
+
+    int x;
+    int y;
+    for (uint16_t j = 0; j < 10; ++j) { // 32 bit = 4 bytes => requires 10 * 4 = 40 bytes of data
+        if (j < agent_id) {
+            x = j;
+            y = agent_id;
+        } else {
+            x = agent_id;
+            y = j;
+        }
+
+        cMessage << (float) m_distanceMatrix[x][y].first;
+    }
+
     // TODO: Information (distance matrix update)
 
     // Fill to the size of communication allowed (bytes)
     cMessage.Resize(m_unBandWidth, '\0');
 
-    // Print message
-    for (size_t i = 0; i < cMessage.Size(); ++i) {
-        buffer[0] = (char) cMessage[i];
-        if (buffer[0] == '\0') {
-            continue; // Skip null characters, avoid losing time
-        }
-
-        printf("Sending %c, at index %zu\n", buffer[0], i);
-    }
-
     // Send the message
     m_pcRangeAndBearingActuator->SetData(cMessage);
-
-    /** Log Information */
-
-//    if (GetId()[2] == '0') {
-//        std::cout << tPackets.size() << std::endl;
-//    }
 
     /** Avoid Obstacles */
 
@@ -218,6 +291,8 @@ void CFootBotDiffusion::ControlStep() {
             m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
         }
     }
+
+    ControlStepROS();
 }
 
 /****************************************/
@@ -233,4 +308,4 @@ void CFootBotDiffusion::ControlStep() {
  * controller class to instantiate.
  * See also the configuration files for an example of how this is used.
  */
-REGISTER_CONTROLLER(CFootBotDiffusion, "footbot_diffusion_controller")
+REGISTER_CONTROLLER(CFootBotTriangulation, "footbot_diffusion_controller")

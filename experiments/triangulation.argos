@@ -39,8 +39,8 @@
   <!-- ****************** -->
   <!-- * Loop functions * -->
   <!-- ****************** -->
-<!--  <loop_functions library="build/loop_functions/trajectory_loop_functions/libtrajectory_loop_functions"-->
-<!--                  label="trajectory_loop_functions" />-->
+  <loop_functions library="devel/lib/libtriangulation_loop_functions"
+                  label="triangulation_loop_functions" />
 
 
   <!-- *********************** -->

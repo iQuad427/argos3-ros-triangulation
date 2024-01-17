@@ -6,26 +6,33 @@
 
 using namespace argos;
 
-class CTrajectoryLoopFunctions : public CLoopFunctions {
+// Define a type for the pair of floats
+typedef std::pair<float, float> DistanceFactorPair;
+
+// Define a type for the distance matrix
+typedef std::vector<std::vector<DistanceFactorPair>> DistanceMatrix;
+
+
+class CTriangulationLoopFunctions : public CLoopFunctions {
 
 public:
 
     typedef std::map<CFootBotEntity*, std::vector<CVector3> > TWaypointMap;
     TWaypointMap m_tWaypoints;
 
+    // Map of foot-bots and their distance matrices
+    typedef std::map<CFootBotEntity*, DistanceMatrix*> TDistanceMatrixMap;
+    TDistanceMatrixMap m_tDistanceMatrices;
+
 public:
 
-    virtual ~CTrajectoryLoopFunctions() {}
+    virtual ~CTriangulationLoopFunctions() {}
 
     virtual void Init(TConfigurationNode& t_tree);
 
     virtual void Reset();
 
     virtual void PostStep();
-
-    inline const TWaypointMap& GetWaypoints() const {
-        return m_tWaypoints;
-    }
 
 private:
 

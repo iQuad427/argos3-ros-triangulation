@@ -38,6 +38,12 @@
 #include <vector>
 #include <utility>
 
+/* ROS dependencies */
+#include "ros/ros.h"
+#include <tri_msgs/Item.h>
+#include <tri_msgs/Matrix.h>
+#include <tri_msgs/Agent.h>
+
 // Define a type for the pair of floats
 typedef std::pair<float, float> DistanceFactorPair;
 
@@ -53,15 +59,15 @@ using namespace argos;
 /*
  * A controller is simply an implementation of the CCI_Controller class.
  */
-class CFootBotDiffusion : public CCI_Controller {
+class CFootBotTriangulation : public CCI_Controller {
 
 public:
 
     /* Class constructor. */
-    CFootBotDiffusion();
+    CFootBotTriangulation();
 
     /* Class destructor. */
-    ~CFootBotDiffusion() override {}
+    ~CFootBotTriangulation() override {}
 
     /*
      * This function initializes the controller.
@@ -94,15 +100,14 @@ public:
      */
     void Destroy() override {}
 
-//    /*
-//     * This function is called by the loop functions to update the distance matrix
-//     */
-//    void UpdateDistanceMatrix();
-//
-//    /*
-//     * This function is called by the loop functions to get the distance matrix information
-//     */
-//    DistanceMatrix GetDistanceMatrix();
+    /*
+     * This function is called by the loop functions to get the distance matrix information
+     */
+    DistanceMatrix* GetDistanceMatrix();
+
+    /* ROS related methods */
+    virtual void InitROS();
+    virtual void ControlStepROS();
 
 private:
 
@@ -117,6 +122,10 @@ private:
     UInt16 m_unBandWidth{}; // allowed bandwidth for the range and bearing communication
 
     DistanceMatrix m_distanceMatrix; // distance matrix for the range and bearing communication
+
+    /* ROS Publisher */
+    ros::Publisher m_matrixPublisher;
+    tri_msgs::Agent m_matrixMessage;
 
     CDegrees m_cAlpha;
     Real m_fDelta;

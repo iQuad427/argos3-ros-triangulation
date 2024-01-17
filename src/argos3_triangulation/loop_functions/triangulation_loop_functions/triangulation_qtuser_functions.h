@@ -14,7 +14,7 @@ public:
 
     CTriangulationQTUserFunctions();
 
-    virtual ~CTriangulationQTUserFunctions() {}
+    ~CTriangulationQTUserFunctions() override = default;
 
     virtual void DrawTriangulation();
 

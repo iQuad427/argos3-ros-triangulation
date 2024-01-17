@@ -3,30 +3,29 @@ project(argos3_triangulation)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 
-##ros part
-
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  tf
+  rospy
   std_msgs
-  geometry_msgs
-  nav_msgs
-  message_generation
+  tri_msgs
 )
+
+#add_message_files(
+#  DIRECTORY msg
+#  FILES
+#)
 
 generate_messages(
   DEPENDENCIES
   std_msgs
-  geometry_msgs
-  nav_msgs
+  tri_msgs
 )
 
 catkin_package(
   LIBRARIES template_controller
-  CATKIN_DEPENDS message_runtime roscpp std_msgs geometry_msgs nav_msgs tf
+  CATKIN_DEPENDS message_runtime roscpp rospy std_msgs
   DEPENDS system_lib
 )
-
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
@@ -34,7 +33,7 @@ include_directories(
 
 link_libraries(${catkin_LIBRARIES})
 
-##argos classic part
+# ARGoS classic part
 
 #
 # Deactivate RPATH for MacOSX
@@ -93,6 +92,3 @@ add_subdirectory(controllers)
 # Descend into the loop functions directory
 #
 add_subdirectory(loop_functions)
-
-
-
