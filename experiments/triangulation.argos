@@ -15,7 +15,7 @@
   <!-- * Controllers * -->
   <!-- *************** -->
   <controllers>
-    <footbot_diffusion_controller id="fdc" library="devel/lib/libtest">
+    <footbot_diffusion_controller id="fdc" library="devel/lib/libtriangulation_controller">
       <actuators>
         <!-- Differential steering actuators -->
         <differential_steering implementation="default" />
