@@ -57,11 +57,11 @@ void CFootBotTriangulation::InitROS() {
 
     dim_1.label = "row";
     dim_1.size = 10;
-    dim_1.stride = 10 * 10;
+    dim_1.stride = 10;
 
     dim_2.label = "column";
     dim_2.size = 10;
-    dim_2.stride = 10;
+    dim_2.stride = 1;
 
     m_matrixMessage.distance_matrix.layout.dim.push_back(dim_1);
     m_matrixMessage.distance_matrix.layout.dim.push_back(dim_2);
@@ -86,8 +86,8 @@ void CFootBotTriangulation::ControlStepROS() {
         // Access and print the elements of the matrix
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
-                item.discount = m_distanceMatrix[i][j].first;
-                item.distance = m_distanceMatrix[i][j].second;
+                item.distance = m_distanceMatrix[i][j].first;
+                item.discount = m_distanceMatrix[i][j].second;
                 m_matrixMessage.distance_matrix.data.push_back(item);
             }
         }
@@ -126,22 +126,6 @@ void CFootBotTriangulation::Init(TConfigurationNode &t_node) {
     m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
 
     InitROS();
-
-//    for (int i = 0; i < numRows; ++i) {
-//        for (int j = 0; j < numCols; ++j) {
-//            float distance = 0.0f; // Replace with your actual distance value
-//            float factor = 0.0f;   // Replace with your actual factor value
-//            m_distanceMatrix[i][j] = std::make_pair(distance, factor);
-//        }
-//    }
-//    // Access and print the elements of the matrix
-//    for (int i = 0; i < numRows; ++i) {
-//        for (int j = 0; j < numCols; ++j) {
-//            std::cout << "(" << m_distanceMatrix[i][j].first << ", " << m_distanceMatrix[i][j].second << ") ";
-//        }
-//        std::cout << std::endl;
-//    }
-//    std::cout << "------------------------------------" << std::endl;
 }
 
 /****************************************/
@@ -213,10 +197,24 @@ void CFootBotTriangulation::ControlStep() {
 
         if (GetId()[2] == '0') {
             float range;
+            int id = (int) responder_id - '0';
 
             for (int k = 0; k < 10; ++k) {
                 data >> range;
-                std::cout << "Data " << k + 1 << ": " << range << std::endl;
+
+                if (id < k) {
+                    x = id;
+                    y = k;
+                } else {
+                    x = k;
+                    y = id;
+                }
+
+                std::cout << "x: " << x << std::endl;
+                std::cout << "y: " << y << std::endl;
+                std::cout << "range: " << (Real) range << std::endl;
+
+                m_distanceMatrix[x][y] = std::make_pair<Real, float>((Real) range, (float) 1);
             }
         }
     }
