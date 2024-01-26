@@ -75,7 +75,6 @@
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" />
       <entity quantity="10" max_trials="100">
         <!-- change rab_data_size to the param size of the object with id="fb" -->
-
         <foot-bot id="fb" rab_data_size="1000" > <!-- rab_data_size is the number of bytes available for the RAB data (default 10) -->
           <controller config="fdc" />
         </foot-bot>

@@ -17,6 +17,7 @@ CFootBotTriangulation::CFootBotTriangulation() :
         m_cAlpha(10.0f),
         m_fDelta(0.5f),
         m_fWheelVelocity(2.5f),
+        m_nRobots(10),
         m_cGoStraightAngleRange(-ToRadians(m_cAlpha),
                                 ToRadians(m_cAlpha)) {}
 
@@ -49,18 +50,18 @@ void CFootBotTriangulation::InitROS() {
     // Prefill Messages
     m_matrixMessage.header.frame_id = publisherName.str();
     m_matrixMessage.agent_id = (uint8_t) GetId()[2];
-    m_matrixMessage.translate = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    m_matrixMessage.translate = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'};
 
     // Define Matrix Dimensions (constant for now)
     std_msgs::MultiArrayDimension dim_1;
     std_msgs::MultiArrayDimension dim_2;
 
     dim_1.label = "row";
-    dim_1.size = 10;
-    dim_1.stride = 10;
+    dim_1.size = m_nRobots;
+    dim_1.stride = m_nRobots;
 
     dim_2.label = "column";
-    dim_2.size = 10;
+    dim_2.size = m_nRobots;
     dim_2.stride = 1;
 
     m_matrixMessage.distance_matrix.layout.dim.push_back(dim_1);
@@ -84,8 +85,8 @@ void CFootBotTriangulation::ControlStepROS() {
         m_matrixMessage.distance_matrix.data.clear();
 
         // Access and print the elements of the matrix
-        for (int i = 0; i < 10; ++i) {
-            for (int j = 0; j < 10; ++j) {
+        for (int i = 0; i < m_nRobots; ++i) {
+            for (int j = 0; j < m_nRobots; ++j) {
                 item.distance = m_distanceMatrix[i][j].first;
                 item.discount = m_distanceMatrix[i][j].second;
                 m_matrixMessage.distance_matrix.data.push_back(item);
@@ -118,9 +119,11 @@ void CFootBotTriangulation::Init(TConfigurationNode &t_node) {
     GetNodeAttributeOrDefault(t_node, "velocity", m_fWheelVelocity, m_fWheelVelocity);
     GetNodeAttributeOrDefault(t_node, "size", m_unBandWidth, m_unBandWidth);
 
+    GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
+
     // Set the number of rows and columns in the matrix
-    int numRows = 10; // Set your desired number of rows
-    int numCols = 10; // Set your desired number of columns
+    int numRows = m_nRobots; // number of rows
+    int numCols = m_nRobots; // number of columns
 
     // Resize the matrix to the specified number of rows and columns
     m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
@@ -140,8 +143,8 @@ DistanceMatrix *CFootBotTriangulation::GetDistanceMatrix() {
 
 void CFootBotTriangulation::Reset() {
     // Reset the matrix to the specified number of rows and columns
-    int numRows = 10; // Set your desired number of rows
-    int numCols = 10; // Set your desired number of columns
+    int numRows = m_nRobots; // Set your desired number of rows
+    int numCols = m_nRobots; // Set your desired number of columns
 
     // Resize the matrix to the specified number of rows and columns
     m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
@@ -179,9 +182,9 @@ void CFootBotTriangulation::ControlStep() {
         int i;
         int j;
         if (initiator_id != '\0' && responder_id != '\0') {
-            // Find indexes of initiator and responder using - '0'
-            i = (int) GetId()[2] - '0';
-            j = (int) responder_id - '0';
+            // Find indexes of initiator and responder using - 'A'
+            i = (int) GetId()[2] - 'A';
+            j = (int) responder_id - 'A';
 
             if (i < j) {
                 x = i;
@@ -195,11 +198,11 @@ void CFootBotTriangulation::ControlStep() {
             m_distanceMatrix[x][y] = std::make_pair(tPackets[un_SelectedPacket].Range, 1);
         }
 
-        if (GetId()[2] == '0') {
+        if (GetId()[2] == 'A') {
             float range;
-            int id = (int) responder_id - '0';
+            int id = (int) responder_id - 'A';
 
-            for (int k = 0; k < 10; ++k) {
+            for (int k = 0; k < m_nRobots; ++k) {
                 data >> range;
 
                 if (id < k) {
@@ -239,11 +242,11 @@ void CFootBotTriangulation::ControlStep() {
     cMessage << (UInt8) 'A';          // ID of sender ('A' is the broadcast ID)
     cMessage << (UInt8) GetId()[2];   // ID of receiver
 
-    int agent_id = (int) GetId()[2] - '0';
+    int agent_id = (int) GetId()[2] - 'A';
 
     int x;
     int y;
-    for (uint16_t j = 0; j < 10; ++j) { // 32 bit = 4 bytes => requires 10 * 4 = 40 bytes of data
+    for (uint16_t j = 0; j < m_nRobots; ++j) { // 32 bit = 4 bytes => requires 10 * 4 = 40 bytes of data
         if (j < agent_id) {
             x = j;
             y = agent_id;

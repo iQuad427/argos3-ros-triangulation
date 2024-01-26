@@ -122,6 +122,7 @@ private:
     UInt16 m_unBandWidth{}; // allowed bandwidth for the range and bearing communication
 
     DistanceMatrix m_distanceMatrix; // distance matrix for the range and bearing communication
+    int m_nRobots;
 
     /* ROS Publisher */
     ros::Publisher m_matrixPublisher;

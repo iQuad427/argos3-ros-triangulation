@@ -24,7 +24,7 @@ from pygame.locals import *
 
 pygame.init()
 
-fig = pylab.figure(figsize=[4, 4], dpi=100)
+fig = pylab.figure(figsize=[6, 6], dpi=100)
 ax = fig.gca()
 
 canvas = agg.FigureCanvasAgg(fig)
@@ -32,7 +32,7 @@ renderer = canvas.get_renderer()
 
 pygame.display.set_caption("Matplotlib with Pygame")
 
-window = pygame.display.set_mode((600, 400), DOUBLEBUF)
+window = pygame.display.set_mode((600, 600), DOUBLEBUF)
 screen = pygame.display.get_surface()
 
 clock = pygame.time.Clock()
@@ -43,7 +43,7 @@ distance_matrix = None
 
 def listen():
     rospy.init_node('listener', anonymous=True)
-    rospy.Subscriber('/fb0/distance_matrix', Agent, callback)
+    rospy.Subscriber('/fbA/distance_matrix', Agent, callback)
 
     crashed = False
     while not crashed:
@@ -96,10 +96,10 @@ def update_plot():
 
         # Update the data in the plot
         # Make sure the matrix is symmetric
-        matrix = (matrix + matrix.T) / 2
+        matrix = (matrix + matrix.T)  # removed '/2' because triangular matrix
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
-        mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True)
+        mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
         embedding = mds.fit_transform(matrix)
 
         # Rotate dots to match previous plot
