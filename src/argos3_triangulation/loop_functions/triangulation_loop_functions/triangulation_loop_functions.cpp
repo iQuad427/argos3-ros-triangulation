@@ -153,15 +153,17 @@ void CTriangulationLoopFunctions::PostStep() {
             /* Create a pointer to the current foot-bot */
             CFootBotEntity *pcFB_2 = any_cast<CFootBotEntity *>(it_2->second);
 
+            if (((it_1->first)[2] - 'A') > ((it_2->first)[2] - 'A')) {
+                continue;
+            }
+
             /* Add the current position of the foot-bot if it's sufficiently far from the last */
-            Real distance = SquareDistance(
+            Real distance = std::sqrt(SquareDistance(
                     pcFB_1->GetEmbodiedEntity().GetOriginAnchor().Position,
                     pcFB_2->GetEmbodiedEntity().GetOriginAnchor().Position
-            );
+            )) * 100;
 
             m_distanceMatrix[(int) ((it_1->first)[2] - 'A')][(int) ((it_2->first)[2] - 'A')] = std::make_pair(distance, 1);
-
-//            std::cout << it_1->first << " " << it_2->first << " " << distance << std::endl;
         }
     }
     ControlStepROS();

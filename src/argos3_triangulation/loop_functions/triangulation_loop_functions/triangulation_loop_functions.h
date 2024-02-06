@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <utility>
+#include <cmath>
 
 /* ROS dependencies */
 #include "ros/ros.h"
