@@ -50,7 +50,7 @@ void CFootBotTriangulation::InitROS() {
     // Prefill Messages
     m_matrixMessage.header.frame_id = publisherName.str();
     m_matrixMessage.agent_id = (uint8_t) GetId()[2];
-    m_matrixMessage.translate = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'};
+    m_matrixMessage.translate = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'};
 
     // Define Matrix Dimensions (constant for now)
     std_msgs::MultiArrayDimension dim_1;

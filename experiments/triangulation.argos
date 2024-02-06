@@ -32,7 +32,7 @@
                            packet_drop_prob="0.95"
                            show_rays="true" />
       </sensors>
-      <params alpha="7.5" delta="0.1" velocity="5" size="1000" />
+      <params alpha="7.5" delta="0.1" velocity="5" size="1000" num_robots="20" />
     </footbot_diffusion_controller>
   </controllers>
 
@@ -73,7 +73,7 @@
     <distribute>
       <position method="uniform" min="-2,-2,0" max="2,2,0" />
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" />
-      <entity quantity="10" max_trials="100">
+      <entity quantity="20" max_trials="100">
         <!-- change rab_data_size to the param size of the object with id="fb" -->
         <foot-bot id="fb" rab_data_size="1000" > <!-- rab_data_size is the number of bytes available for the RAB data (default 10) -->
           <controller config="fdc" />

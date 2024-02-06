@@ -20,11 +20,97 @@ static const Real MIN_DISTANCE_SQUARED = MIN_DISTANCE * MIN_DISTANCE;
 /****************************************/
 /****************************************/
 
+void CFootBotTriangulation::InitROS() {
+    //get e-puck ID
+    std::stringstream name;
+    name.str("");
+    name << "loop_function"; // fbX
+
+    //init ROS
+    if (!ros::isInitialized()) {
+        char **argv = NULL;
+        int argc = 0;
+        ros::init(argc, argv, name.str());
+    }
+
+    //ROS access node
+    ros::NodeHandle node;
+
+    std::stringstream publisherName;
+
+    publisherName << name.str() << "/distance_matrix";
+
+    // Register the publisher to the ROS master
+    m_matrixPublisher = node.advertise<tri_msgs::Agent>(publisherName.str(), 10);
+
+    // Prefill Messages
+    m_matrixMessage.header.frame_id = publisherName.str();
+    m_matrixMessage.agent_id = (uint8_t) 0;
+    m_matrixMessage.translate = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'};
+
+    // Define Matrix Dimensions (constant for now)
+    std_msgs::MultiArrayDimension dim_1;
+    std_msgs::MultiArrayDimension dim_2;
+
+    dim_1.label = "row";
+    dim_1.size = m_nRobots;
+    dim_1.stride = m_nRobots;
+
+    dim_2.label = "column";
+    dim_2.size = m_nRobots;
+    dim_2.stride = 1;
+
+    m_matrixMessage.distance_matrix.layout.dim.push_back(dim_1);
+    m_matrixMessage.distance_matrix.layout.dim.push_back(dim_2);
+    m_matrixMessage.distance_matrix.layout.data_offset = 0;
+}
+
+void CFootBotTriangulation::ControlStepROS() {
+    if (ros::ok()) {
+        std::stringstream name;
+        name.str("");
+        name << GetId()[2];
+
+        /* Fill in a message and publish using the publisher node */
+        m_matrixMessage.header.stamp = ros::Time::now();
+
+        // Add the matrix
+        tri_msgs::Item item;
+
+        // TODO: optimize data update, avoid creating everything from scratch each time
+        m_matrixMessage.distance_matrix.data.clear();
+
+        // Access and print the elements of the matrix
+        for (int i = 0; i < m_nRobots; ++i) {
+            for (int j = 0; j < m_nRobots; ++j) {
+                item.distance = m_distanceMatrix[i][j].first;
+                item.discount = m_distanceMatrix[i][j].second;
+                m_matrixMessage.distance_matrix.data.push_back(item);
+            }
+        }
+
+        m_matrixPublisher.publish(m_matrixMessage);
+
+        //update ROS status
+        ros::spinOnce();
+    }
+}
+
+/****************************************/
+/****************************************/
+
 void CTriangulationLoopFunctions::Init(TConfigurationNode &t_tree) {
-    /*
-     * Go through all the robots in the environment
-     * and create an entry in the waypoint map for each of them
-     */
+    GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
+
+    // Set the number of rows and columns in the matrix
+    int numRows = m_nRobots; // number of rows
+    int numCols = m_nRobots; // number of columns
+
+    // Resize the matrix to the specified number of rows and columns
+    m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
+
+    InitROS();
+
     /* Get the map of all foot-bots from the space */
     CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
     /* Go through them */

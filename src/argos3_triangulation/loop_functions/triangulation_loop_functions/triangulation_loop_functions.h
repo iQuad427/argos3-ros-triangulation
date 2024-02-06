@@ -4,6 +4,12 @@
 #include <argos3/core/simulator/loop_functions.h>
 #include <argos3/plugins/robots/foot-bot/simulator/footbot_entity.h>
 
+/* ROS dependencies */
+#include "ros/ros.h"
+#include <tri_msgs/Item.h>
+#include <tri_msgs/Matrix.h>
+#include <tri_msgs/Agent.h>
+
 using namespace argos;
 
 // Define a type for the pair of floats
@@ -35,6 +41,14 @@ public:
     virtual void PostStep();
 
 private:
+
+    /* Distance Matrix */
+    DistanceMatrix m_distanceMatrix; // distance matrix for the range and bearing communication
+    int m_nRobots;
+
+    /* ROS Publisher */
+    ros::Publisher m_matrixPublisher;
+    tri_msgs::Agent m_matrixMessage;
 
 };
 
