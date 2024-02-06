@@ -17,6 +17,9 @@ static const Real MIN_DISTANCE = 0.05f;
 /* Convenience constant to avoid calculating the square root in PostStep() */
 static const Real MIN_DISTANCE_SQUARED = MIN_DISTANCE * MIN_DISTANCE;
 
+CTriangulationLoopFunctions::CTriangulationLoopFunctions() :
+        m_nRobots(10) {}
+
 /****************************************/
 /****************************************/
 
@@ -100,7 +103,9 @@ void CTriangulationLoopFunctions::ControlStepROS() {
 /****************************************/
 
 void CTriangulationLoopFunctions::Init(TConfigurationNode &t_tree) {
-    GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
+    GetNodeAttributeOrDefault(t_tree, "num_robots", m_nRobots, m_nRobots);
+
+    std::cout << m_nRobots << std::endl;
 
     // Set the number of rows and columns in the matrix
     int numRows = m_nRobots; // number of rows
@@ -140,13 +145,26 @@ void CTriangulationLoopFunctions::PostStep() {
     /* Get the map of all foot-bots from the space */
     CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
     /* Go through them */
-    for (CSpace::TMapPerType::iterator it = tFBMap.begin(); it != tFBMap.end(); ++it) {
+    for (CSpace::TMapPerType::iterator it_1 = tFBMap.begin(); it_1 != tFBMap.end(); ++it_1) {
         /* Create a pointer to the current foot-bot */
-        CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
-        /* Add the current position of the foot-bot if it's sufficiently far from the last */
-        SquareDistance(pcFB->GetEmbodiedEntity().GetOriginAnchor().Position,
-                       m_tWaypoints[pcFB].back());
+        CFootBotEntity *pcFB_1 = any_cast<CFootBotEntity *>(it_1->second);
+
+        for (CSpace::TMapPerType::iterator it_2 = tFBMap.begin(); it_2 != tFBMap.end(); ++it_2) {
+            /* Create a pointer to the current foot-bot */
+            CFootBotEntity *pcFB_2 = any_cast<CFootBotEntity *>(it_2->second);
+
+            /* Add the current position of the foot-bot if it's sufficiently far from the last */
+            Real distance = SquareDistance(
+                    pcFB_1->GetEmbodiedEntity().GetOriginAnchor().Position,
+                    pcFB_2->GetEmbodiedEntity().GetOriginAnchor().Position
+            );
+
+            m_distanceMatrix[(int) ((it_1->first)[2] - 'A')][(int) ((it_2->first)[2] - 'A')] = std::make_pair(distance, 1);
+
+//            std::cout << it_1->first << " " << it_2->first << " " << distance << std::endl;
+        }
     }
+    ControlStepROS();
 }
 
 /****************************************/

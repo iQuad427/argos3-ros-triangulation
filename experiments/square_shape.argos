@@ -40,7 +40,8 @@
     <!-- * Loop functions * -->
     <!-- ****************** -->
     <loop_functions library="devel/lib/libtriangulation_loop_functions"
-                    label="triangulation_loop_functions" />
+                    label="triangulation_loop_functions"
+                    num_robots="20" />
 
 
     <!-- *********************** -->

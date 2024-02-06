@@ -43,7 +43,7 @@ distance_matrix = None
 
 def listen():
     rospy.init_node('listener', anonymous=True)
-    rospy.Subscriber('/fbA/distance_matrix', Agent, callback)
+    rospy.Subscriber('/loop_function/distance_matrix', Agent, callback)
 
     crashed = False
     while not crashed:
