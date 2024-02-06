@@ -40,6 +40,10 @@ public:
 
     virtual void PostStep();
 
+    /* ROS related methods */
+    virtual void InitROS();
+    virtual void ControlStepROS();
+
 private:
 
     /* Distance Matrix */

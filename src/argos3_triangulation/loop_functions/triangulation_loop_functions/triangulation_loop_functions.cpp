@@ -20,7 +20,7 @@ static const Real MIN_DISTANCE_SQUARED = MIN_DISTANCE * MIN_DISTANCE;
 /****************************************/
 /****************************************/
 
-void CFootBotTriangulation::InitROS() {
+void CTriangulationLoopFunctions::InitROS() {
     //get e-puck ID
     std::stringstream name;
     name.str("");
@@ -65,11 +65,11 @@ void CFootBotTriangulation::InitROS() {
     m_matrixMessage.distance_matrix.layout.data_offset = 0;
 }
 
-void CFootBotTriangulation::ControlStepROS() {
+void CTriangulationLoopFunctions::ControlStepROS() {
     if (ros::ok()) {
         std::stringstream name;
         name.str("");
-        name << GetId()[2];
+        name << "loop_function";
 
         /* Fill in a message and publish using the publisher node */
         m_matrixMessage.header.stamp = ros::Time::now();
@@ -110,32 +110,17 @@ void CTriangulationLoopFunctions::Init(TConfigurationNode &t_tree) {
     m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
 
     InitROS();
-
-    /* Get the map of all foot-bots from the space */
-    CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
-    /* Go through them */
-    for (CSpace::TMapPerType::iterator it = tFBMap.begin(); it != tFBMap.end(); ++it) {
-        /* Create a pointer to the current foot-bot */
-        CFootBotEntity *pcFB = any_cast<CFootBotEntity*>(it->second);
-
-        /* Recover agent distance matrix */
-        CFootBotTriangulation& cController = dynamic_cast<CFootBotTriangulation&>((*pcFB).GetControllableEntity().GetController());
-        m_tDistanceMatrices[pcFB] = cController.GetDistanceMatrix();
-
-        /* Create a waypoint vector */
-        m_tWaypoints[pcFB] = std::vector<CVector3>();
-        /* Add the initial position of the foot-bot */
-        m_tWaypoints[pcFB].push_back(pcFB->GetEmbodiedEntity().GetOriginAnchor().Position);
-    }
 }
 
 /****************************************/
 /****************************************/
 
 void CTriangulationLoopFunctions::Reset() {
-    /*
-     * Clear all the waypoint vectors
-     */
+    /* Clear distance matrix */
+    for (int i = 0; i < m_nRobots; ++i) {
+        m_distanceMatrix[i].clear();
+    }
+
     /* Get the map of all foot-bots from the space */
     CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
     /* Go through them */
@@ -144,13 +129,7 @@ void CTriangulationLoopFunctions::Reset() {
          ++it) {
         /* Create a pointer to the current foot-bot */
         CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
-
-
-
-        /* Clear the waypoint vector */
-        m_tWaypoints[pcFB].clear();
-        /* Add the initial position of the foot-bot */
-        m_tWaypoints[pcFB].push_back(pcFB->GetEmbodiedEntity().GetOriginAnchor().Position);
+        // Get Position : pcFB->GetEmbodiedEntity().GetOriginAnchor().Position
     }
 }
 
@@ -161,16 +140,12 @@ void CTriangulationLoopFunctions::PostStep() {
     /* Get the map of all foot-bots from the space */
     CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
     /* Go through them */
-    for (CSpace::TMapPerType::iterator it = tFBMap.begin();
-         it != tFBMap.end();
-         ++it) {
+    for (CSpace::TMapPerType::iterator it = tFBMap.begin(); it != tFBMap.end(); ++it) {
         /* Create a pointer to the current foot-bot */
         CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
         /* Add the current position of the foot-bot if it's sufficiently far from the last */
-        if (SquareDistance(pcFB->GetEmbodiedEntity().GetOriginAnchor().Position,
-                           m_tWaypoints[pcFB].back()) > MIN_DISTANCE_SQUARED) {
-            m_tWaypoints[pcFB].push_back(pcFB->GetEmbodiedEntity().GetOriginAnchor().Position);
-        }
+        SquareDistance(pcFB->GetEmbodiedEntity().GetOriginAnchor().Position,
+                       m_tWaypoints[pcFB].back());
     }
 }
 
