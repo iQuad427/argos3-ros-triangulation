@@ -69,7 +69,7 @@ def listen():
             print(msg)
             pub.publish(msg)
 
-        clock.tick(30)  # Limit to 30 frames per second
+        clock.tick(1)  # Limit to 30 frames per second
 
 
 def find_rotation_matrix(X, Y):
@@ -153,6 +153,8 @@ def update_plot():
 
         # Update the scatter plot data
         plt.scatter(embedding[:, 0], embedding[:, 1], c='r')
+        plt.scatter(embedding[0, 0], embedding[0, 0], c='b')
+        plt.scatter(*np.mean(embedding, axis=0), c='g')
 
         # Redraw the canvas
         canvas.draw()
@@ -175,7 +177,9 @@ def compute_direction():
     # Note: The pairwise evolution of distances between the agents (with the matrix of distances) may be computed
     #       as a difference of the matrices to estimate the gradient and angle of the movement of the agent.
 
-    if previous_plot is None or current_plot is None:
+    if previous_plot is not None and current_plot is not None:
+        # print(previous_plot)
+        # print(current_plot)
         # Compute the centroid of the current and previous MDS coordinates
         centroid_previous = np.mean(previous_plot, axis=0)
         centroid_current = np.mean(current_plot, axis=0)
@@ -185,7 +189,7 @@ def compute_direction():
         distance_after = np.linalg.norm(centroid_current - current_plot[0])
 
         # Compute the gradient and angle of the movement
-        gradient = (distance_after - distance_before) / distance_before
+        gradient = distance_before - distance_after
         angle = math.atan2(centroid_current[1] - centroid_previous[1], centroid_current[0] - centroid_previous[0])
 
         msg = Direction()
@@ -249,7 +253,7 @@ def MDS_fitting(matrix):
 def callback(data: Agent):
     global distance_matrix, previous_matrix
 
-    rospy.loginfo(f"received")
+    # rospy.loginfo(f"received")
 
     previous_matrix = distance_matrix
     distance_matrix = convert_to_numpy(data.distance_matrix)

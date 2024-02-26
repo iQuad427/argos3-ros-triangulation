@@ -15,26 +15,7 @@
     <!-- * Controllers * -->
     <!-- *************** -->
     <controllers>
-        <footbot_trilateration_controller id="fdc" library="devel/lib/libmorphogenesis_controller">
-            <actuators>
-                <!-- Differential steering actuators -->
-                <differential_steering implementation="default" />
-                <!-- Range and Bearing actuators -->
-                <range_and_bearing implementation="default" />
-            </actuators>
-            <sensors>
-                <!-- Proximity sensors -->
-                <footbot_proximity implementation="default" show_rays="true" />
-                <!-- Range and Bearing sensors -->
-                <range_and_bearing implementation="medium"
-                                   medium="rab"
-                                   noise_std_dev="0"
-                                   packet_drop_prob="0.92"
-                                   show_rays="true" />
-            </sensors>
-            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="20" />
-        </footbot_trilateration_controller>
-        <footbot_morphogenesis_controller id="fmc" library="devel/lib/libmorphogenesis_controller">
+        <footbot_diffusion_controller id="fdc" library="devel/lib/libmorphogenesis_controller">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -52,7 +33,7 @@
                                    show_rays="true" />
             </sensors>
             <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="20" />
-        </footbot_morphogenesis_controller>
+        </footbot_diffusion_controller>
     </controllers>
 
     <!-- ****************** -->
@@ -83,7 +64,7 @@
 
         <foot-bot id="fbA" rab_range="10" rab_data_size="1000" >
             <body orientation="0,0,0" position="1.8,0.0,0" />
-            <controller config="fmc" />
+            <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbB" rab_range="10" rab_data_size="1000" >
             <body orientation="0,0,0" position="1.7119017293312764,0.5562305898749054,0" />

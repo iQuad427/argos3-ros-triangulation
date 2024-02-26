@@ -77,7 +77,8 @@ void CFootBotTriangulation::InitROS() {
 }
 
 void CFootBotTriangulation::CallbackROS(const morpho_msgs::Direction::ConstPtr& msg) {
-    std::cout << "callback" << std::endl;
+    float gradient = msg->gradient;
+    std::cout << gradient << std::endl;
 }
 
 void CFootBotTriangulation::ControlStepROS() {

@@ -1,2 +1,2 @@
-int8 gradient
-int16 angle
+float32 gradient
+float32 angle
