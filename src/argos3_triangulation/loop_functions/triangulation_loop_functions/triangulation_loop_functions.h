@@ -4,6 +4,17 @@
 #include <argos3/core/simulator/loop_functions.h>
 #include <argos3/plugins/robots/foot-bot/simulator/footbot_entity.h>
 
+#include <iostream>
+#include <vector>
+#include <utility>
+#include <cmath>
+
+/* ROS dependencies */
+#include "ros/ros.h"
+#include <tri_msgs/Item.h>
+#include <tri_msgs/Matrix.h>
+#include <tri_msgs/Agent.h>
+
 using namespace argos;
 
 // Define a type for the pair of floats
@@ -11,7 +22,6 @@ typedef std::pair<float, float> DistanceFactorPair;
 
 // Define a type for the distance matrix
 typedef std::vector<std::vector<DistanceFactorPair>> DistanceMatrix;
-
 
 class CTriangulationLoopFunctions : public CLoopFunctions {
 
@@ -26,7 +36,9 @@ public:
 
 public:
 
-    virtual ~CTriangulationLoopFunctions() {}
+    CTriangulationLoopFunctions();
+
+    ~CTriangulationLoopFunctions() override {}
 
     virtual void Init(TConfigurationNode& t_tree);
 
@@ -34,7 +46,21 @@ public:
 
     virtual void PostStep();
 
+    // TODO: post positions of each robot to a ROS Topic
+
+    /* ROS related methods */
+    virtual void InitROS();
+    virtual void ControlStepROS();
+
 private:
+
+    /* Distance Matrix */
+    DistanceMatrix m_distanceMatrix; // distance matrix for the range and bearing communication
+    int m_nRobots;
+
+    /* ROS Publisher */
+    ros::Publisher m_matrixPublisher;
+    tri_msgs::Agent m_matrixMessage;
 
 };
 

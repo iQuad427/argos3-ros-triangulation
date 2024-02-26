@@ -29,10 +29,10 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0"
-                                   packet_drop_prob="0.95"
+                                   packet_drop_prob="0.99"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="16" />
+            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="4" />
         </footbot_diffusion_controller>
     </controllers>
 
@@ -40,7 +40,8 @@
     <!-- * Loop functions * -->
     <!-- ****************** -->
     <loop_functions library="devel/lib/libtriangulation_loop_functions"
-                    label="triangulation_loop_functions" />
+                    label="triangulation_loop_functions"
+                    num_robots="4" />
 
 
     <!-- *********************** -->
@@ -62,67 +63,19 @@
         </box>
 
         <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.8,0.0,0" />
+            <body orientation="0,0,0" position="1,0,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.662983158520316,0.6888301782571616,0" />
+            <body orientation="0,0,0" position="-1,0,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.2727922061357857,1.2727922061357855,0" />
+            <body orientation="0,0,0" position="0,1,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="0.6888301782571618,1.662983158520316,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.1021821192326179e-16,1.8,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbF" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-0.6888301782571615,1.662983158520316,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbG" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1.2727922061357855,1.2727922061357857,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbH" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1.662983158520316,0.6888301782571619,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbI" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1.8,2.2043642384652358e-16,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbJ" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1.6629831585203163,-0.6888301782571614,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbK" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1.272792206135786,-1.2727922061357855,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbL" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-0.6888301782571626,-1.6629831585203159,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbM" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-3.3065463576978537e-16,-1.8,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbN" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="0.688830178257162,-1.6629831585203159,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbO" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.2727922061357853,-1.272792206135786,0" />
-            <controller config="fdc" />
-        </foot-bot>
-        <foot-bot id="fbP" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.6629831585203159,-0.6888301782571628,0" />
+            <body orientation="0,0,0" position="0,-1,0" />
             <controller config="fdc" />
         </foot-bot>
     </arena>

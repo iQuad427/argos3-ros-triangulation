@@ -12,6 +12,7 @@ from numpy.linalg import svd
 from sklearn.manifold import MDS
 
 from tri_msgs.msg import Agent, Matrix, Item
+from morpho_msgs.msg import Direction
 from std_msgs.msg import MultiArrayLayout
 
 import matplotlib
@@ -43,7 +44,10 @@ distance_matrix = None
 
 def listen():
     rospy.init_node('listener', anonymous=True)
+    # rospy.Subscriber('/loop_function/distance_matrix', Agent, callback)
     rospy.Subscriber('/fbA/distance_matrix', Agent, callback)
+
+    pub = rospy.Publisher('/fbA/direction', Direction, queue_size=10)
 
     crashed = False
     while not crashed:
@@ -53,6 +57,11 @@ def listen():
 
         # Update the data in the plot
         update_plot()
+
+        # TODO: publish new information on direction to take
+        msg = compute_direction()
+        pub.publish(msg)
+        print(msg)
 
         clock.tick(30)  # Limit to 30 frames per second
 
@@ -152,6 +161,16 @@ def update_plot():
         pygame.display.flip()
 
 
+def compute_direction():
+    # TODO: complete gradient and angle measurement
+    msg = Direction()
+
+    msg.gradient = 0
+    msg.angle = 0
+
+    return msg
+
+
 def get_matrix_dim(layout: MultiArrayLayout):
     label = ()
     dim = ()
@@ -206,7 +225,7 @@ def callback(data: Agent):
     rospy.loginfo(f"received")
 
     distance_matrix = convert_to_numpy(data.distance_matrix)
-    print(distance_matrix)
+    # print(distance_matrix)
 
 
 if __name__ == '__main__':

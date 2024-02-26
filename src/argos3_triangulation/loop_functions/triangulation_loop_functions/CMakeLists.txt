@@ -2,9 +2,7 @@ include_directories(${ARGOS_QTOPENGL_INCLUDE_DIRS})
 
 add_library(triangulation_loop_functions MODULE
         triangulation_loop_functions.h
-        triangulation_loop_functions.cpp
-        triangulation_qtuser_functions.h
-        triangulation_qtuser_functions.cpp)
+        triangulation_loop_functions.cpp)
 
 target_link_libraries(triangulation_loop_functions
         argos3core_simulator
