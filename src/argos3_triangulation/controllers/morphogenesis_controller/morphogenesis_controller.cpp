@@ -1,5 +1,5 @@
 /* Include the controller definition */
-#include "triangulation_controller.h"
+#include "morphogenesis_controller.h"
 /* Function definitions for XML parsing */
 #include <argos3/core/utility/configuration/argos_configuration.h>
 /* 2D vector definition */
@@ -37,15 +37,19 @@ void CFootBotTriangulation::InitROS() {
         ros::init(argc, argv, name.str());
     }
 
-    //ROS access node
-    ros::NodeHandle node;
+    // ROS access node
+    ros::NodeHandle pub_node;
+    ros::NodeHandle sub_node;
 
     std::stringstream publisherName;
+    std::stringstream subscriberName;
 
     publisherName << name.str() << "/distance_matrix";
+    subscriberName << name.str() << "/direction";
 
     // Register the publisher to the ROS master
-    m_matrixPublisher = node.advertise<tri_msgs::Agent>(publisherName.str(), 10);
+    m_matrixPublisher = pub_node.advertise<tri_msgs::Agent>(publisherName.str(), 10);
+    m_directionSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
 
     // Prefill Messages
     m_matrixMessage.header.frame_id = publisherName.str();
@@ -70,6 +74,10 @@ void CFootBotTriangulation::InitROS() {
     m_matrixMessage.distance_matrix.layout.dim.push_back(dim_1);
     m_matrixMessage.distance_matrix.layout.dim.push_back(dim_2);
     m_matrixMessage.distance_matrix.layout.data_offset = 0;
+}
+
+void CFootBotTriangulation::CallbackROS(const morpho_msgs::Direction::ConstPtr& msg) {
+    std::cout << "callback" << std::endl;
 }
 
 void CFootBotTriangulation::ControlStepROS() {
@@ -216,19 +224,10 @@ void CFootBotTriangulation::ControlStep() {
                     y = id;
                 }
 
-                std::cout << "x: " << x << std::endl;
-                std::cout << "y: " << y << std::endl;
-                std::cout << "range: " << (Real) range << std::endl;
-
                 m_distanceMatrix[x][y] = std::make_pair<Real, float>((Real) range, (float) 1);
             }
         }
     }
-
-    // TODO: add information on robot matrices
-    //      => send information on distance matrix
-    //      => parse information of other agents
-    //  Idea : Start easy by sending only information the robot knows about (its range infos)
 
     /** Responder */
     /*  Note: only simulating the sending of the acknowledgment message, which is sent by the responder
@@ -239,7 +238,7 @@ void CFootBotTriangulation::ControlStep() {
     /* Send a message
      * 1. ID of sender (robot that is supposed to receive the message)
      * 2. ID of receiver (itself)
-     * 3. TODO: Information (distance matrix update)
+     * 3. Information (distance matrix update)
      */
     CByteArray cMessage;
     cMessage << (UInt8) 'A';          // ID of sender ('A' is the broadcast ID)
@@ -260,8 +259,6 @@ void CFootBotTriangulation::ControlStep() {
 
         cMessage << (float) m_distanceMatrix[x][y].first;
     }
-
-    // TODO: Information (distance matrix update)
 
     // Fill to the size of communication allowed (bytes)
     cMessage.Resize(m_unBandWidth, '\0');

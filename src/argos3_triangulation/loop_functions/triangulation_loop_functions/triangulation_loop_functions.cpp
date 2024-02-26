@@ -105,8 +105,6 @@ void CTriangulationLoopFunctions::ControlStepROS() {
 void CTriangulationLoopFunctions::Init(TConfigurationNode &t_tree) {
     GetNodeAttributeOrDefault(t_tree, "num_robots", m_nRobots, m_nRobots);
 
-    std::cout << m_nRobots << std::endl;
-
     // Set the number of rows and columns in the matrix
     int numRows = m_nRobots; // number of rows
     int numCols = m_nRobots; // number of columns
