@@ -8,6 +8,11 @@
 /****************************************/
 /****************************************/
 
+float CFootBotTriangulation::m_distance;
+float CFootBotTriangulation::m_gradient;
+float CFootBotTriangulation::m_activation;
+int CFootBotTriangulation::m_counter;
+
 CFootBotTriangulation::CFootBotTriangulation() :
         m_pcWheels(nullptr),
         m_pcProximity(nullptr),
@@ -77,8 +82,9 @@ void CFootBotTriangulation::InitROS() {
 }
 
 void CFootBotTriangulation::CallbackROS(const morpho_msgs::Direction::ConstPtr& msg) {
-    float gradient = msg->gradient;
-    std::cout << gradient << std::endl;
+    m_gradient = msg->gradient;
+    m_distance = msg->distance;
+    m_activation = msg->activation;
 }
 
 void CFootBotTriangulation::ControlStepROS() {
@@ -136,6 +142,9 @@ void CFootBotTriangulation::Init(TConfigurationNode &t_node) {
     // Set the number of rows and columns in the matrix
     int numRows = m_nRobots; // number of rows
     int numCols = m_nRobots; // number of columns
+
+    // State machine
+    m_state = MOVE;
 
     // Resize the matrix to the specified number of rows and columns
     m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
@@ -210,6 +219,8 @@ void CFootBotTriangulation::ControlStep() {
             m_distanceMatrix[x][y] = std::make_pair(tPackets[un_SelectedPacket].Range, 1);
         }
 
+        std::cout << GetId()[2] << std::endl;
+
         if (GetId()[2] == 'A') {
             float range;
             int id = (int) responder_id - 'A';
@@ -267,31 +278,60 @@ void CFootBotTriangulation::ControlStep() {
     // Send the message
     m_pcRangeAndBearingActuator->SetData(cMessage);
 
-    /** Avoid Obstacles */
+    /** State Machine based Movement */
 
-    /* Get readings from proximity sensor */
-    const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
-    /* Sum them together */
-    CVector2 cAccumulator;
-    for (auto tProxRead: tProxReads) {
-        cAccumulator += CVector2(tProxRead.Value, tProxRead.Angle);
-    }
-    cAccumulator /= tProxReads.size();
-    /* If the angle of the vector is small enough and the closest obstacle
-     * is far enough, continue going straight, otherwise curve a little
-     */
-    CRadians cAngle = cAccumulator.Angle();
-    if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
-        cAccumulator.Length() < m_fDelta) {
-        /* Go straight */
-        m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
-    } else {
-        /* Turn, depending on the sign of the angle */
-        if (cAngle.GetValue() > 0.0f) {
-            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
+//    std::cout << m_counter << std::endl;
+    std::cout << m_gradient << std::endl;
+    std::cout << m_activation << std::endl;
+//    std::cout << m_distance << std::endl;
+
+    /* State Transitions */
+    if (m_state == MOVE) {
+        if (m_distance > 5) {
+            if (m_gradient < 0) {
+                m_state = TURN; // Should try another direction
+                m_counter = m_activation * 100;
+            }
         } else {
-            m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
+            m_state = STOP;
         }
+    } else if (m_state == TURN) {
+        if (m_counter <= 0) {
+            m_state = GO;
+            m_counter = 20;
+        } else {
+            m_counter--;
+        }
+    } else if (m_state == GO) {
+        if (m_counter <= 0) {
+            m_state = MOVE;
+        } else {
+            m_counter--;
+        }
+    } else if (m_state == STOP) {
+        if (m_distance > 5) {
+            m_state = MOVE;
+        }
+    }
+
+    /* State Action */
+    switch (m_state) {
+        case MOVE :
+//            std::cout << m_state << ": moving forward" << std::endl;
+            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
+            break;
+        case GO:
+//            std::cout << m_state << ": going forward" << std::endl;
+            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
+            break;
+        case TURN:
+//            std::cout << m_state << ": turning" << std::endl;
+            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, -m_fWheelVelocity);
+            break;
+        case STOP:
+//            std::cout << m_state << ": stopped" << std::endl;
+            m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
+            break;
     }
 
     ControlStepROS();

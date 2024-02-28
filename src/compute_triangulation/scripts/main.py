@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 import math
+import sys
 import threading
 
 import numpy as np
@@ -47,11 +48,17 @@ distance_matrix = None
 def listen():
     global previous_plot, current_plot, distance_matrix
 
+    # print(sys.argv[1])
+
+    ros_launch_param = sys.argv[1]
+
     rospy.init_node('listener', anonymous=True)
     # rospy.Subscriber('/loop_function/distance_matrix', Agent, callback)
-    rospy.Subscriber('/fbA/distance_matrix', Agent, callback)
+    rospy.Subscriber(f'/{ros_launch_param}/distance_matrix', Agent, callback)
 
-    pub = rospy.Publisher('/fbA/direction', Direction, queue_size=10)
+    pub = rospy.Publisher(f'/{ros_launch_param}/direction', Direction, queue_size=10)
+
+    max_gradient = 0
 
     crashed = False
     while not crashed:
@@ -66,10 +73,16 @@ def listen():
         previous_plot = current_plot
 
         if msg is not None:
-            print(msg)
+            if abs(msg.gradient) > max_gradient:
+                max_gradient = abs(msg.gradient)
+
+            msg.gradient = msg.gradient/max_gradient
+            msg.activation = 1 / (1 + math.exp(-msg.gradient))
+
+            # print(msg)
             pub.publish(msg)
 
-        clock.tick(1)  # Limit to 30 frames per second
+        clock.tick(2)  # Limit to 30 frames per second
 
 
 def find_rotation_matrix(X, Y):
@@ -153,7 +166,7 @@ def update_plot():
 
         # Update the scatter plot data
         plt.scatter(embedding[:, 0], embedding[:, 1], c='r')
-        plt.scatter(embedding[0, 0], embedding[0, 0], c='b')
+        plt.scatter(embedding[0, 0], embedding[0, 1], c='b')
         plt.scatter(*np.mean(embedding, axis=0), c='g')
 
         # Redraw the canvas
@@ -194,6 +207,7 @@ def compute_direction():
 
         msg = Direction()
 
+        msg.distance = distance_after
         msg.gradient = gradient
         msg.angle = angle
     else:
@@ -257,6 +271,8 @@ def callback(data: Agent):
 
     previous_matrix = distance_matrix
     distance_matrix = convert_to_numpy(data.distance_matrix)
+
+    # print(distance_matrix)
 
 
 if __name__ == '__main__':

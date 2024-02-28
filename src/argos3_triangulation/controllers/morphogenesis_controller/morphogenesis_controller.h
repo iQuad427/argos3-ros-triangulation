@@ -37,6 +37,7 @@
 #include <iostream>
 #include <vector>
 #include <utility>
+#include <cmath>
 
 /* ROS dependencies */
 #include "ros/ros.h"
@@ -44,6 +45,11 @@
 #include <tri_msgs/Item.h>
 #include <tri_msgs/Matrix.h>
 #include <tri_msgs/Agent.h>
+
+#define STOP 0
+#define MOVE 1
+#define TURN 2
+#define GO   3
 
 // Define a type for the pair of floats
 typedef std::pair<float, float> DistanceFactorPair;
@@ -132,6 +138,14 @@ private:
 
     tri_msgs::Agent m_matrixMessage;
     morpho_msgs::Direction m_directionMessage;
+
+    static float m_gradient;
+    static float m_distance;
+    static float m_activation;
+    static int m_counter;
+
+    // Movement State Machine
+    int m_state;
 
     CDegrees m_cAlpha;
     Real m_fDelta;

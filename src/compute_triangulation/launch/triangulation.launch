@@ -1,3 +1,6 @@
 <launch>
-    <node pkg="compute_triangulation" type="main.py" name="main" output="screen"></node>
+    <node pkg="compute_triangulation" type="main.py" name="mainA" output="screen" args="$(arg a)"></node>
+    <node pkg="compute_triangulation" type="main.py" name="mainB" output="screen" args="$(arg b)"></node>
+    <node pkg="compute_triangulation" type="main.py" name="mainC" output="screen" args="$(arg c)"></node>
+    <node pkg="compute_triangulation" type="main.py" name="mainD" output="screen" args="$(arg d)"></node>
 </launch>
