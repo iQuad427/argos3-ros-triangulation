@@ -66,15 +66,15 @@ using namespace argos;
 /*
  * A controller is simply an implementation of the CCI_Controller class.
  */
-class CFootBotMorphogenesis : public CCI_Controller {
+class CFootBotRandomWalk : public CCI_Controller {
 
 public:
 
     /* Class constructor. */
-    CFootBotMorphogenesis();
+    CFootBotRandomWalk();
 
     /* Class destructor. */
-    ~CFootBotMorphogenesis() override {}
+    ~CFootBotRandomWalk() override {}
 
     /*
      * This function initializes the controller.
@@ -139,11 +139,8 @@ private:
     tri_msgs::Agent m_matrixMessage;
     morpho_msgs::Direction m_directionMessage;
 
-    static float m_gradient;
-    static float m_distance;
-    static float m_activation;
-
     int m_counter;
+    bool m_direction;
 
     // Movement State Machine
     int m_state;

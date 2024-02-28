@@ -216,10 +216,6 @@ void CFootBotTriangulation::ControlStep() {
                     y = id;
                 }
 
-                std::cout << "x: " << x << std::endl;
-                std::cout << "y: " << y << std::endl;
-                std::cout << "range: " << (Real) range << std::endl;
-
                 m_distanceMatrix[x][y] = std::make_pair<Real, float>((Real) range, (float) 1);
             }
         }
@@ -312,4 +308,4 @@ void CFootBotTriangulation::ControlStep() {
  * controller class to instantiate.
  * See also the configuration files for an example of how this is used.
  */
-REGISTER_CONTROLLER(CFootBotTriangulation, "footbot_diffusion_controller")
+REGISTER_CONTROLLER(CFootBotTriangulation, "footbot_triangulation_controller")
