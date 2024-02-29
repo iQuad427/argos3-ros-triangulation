@@ -15,7 +15,7 @@
     <!-- * Controllers * -->
     <!-- *************** -->
     <controllers>
-        <footbot_diffusion_controller id="fdc" library="devel/lib/libmorphogenesis_controller">
+        <footbot_communication_controller id="fdc" library="devel/lib/libcommunication_controller">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -33,7 +33,7 @@
                                    show_rays="true" />
             </sensors>
             <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="20" />
-        </footbot_diffusion_controller>
+        </footbot_communication_controller>
     </controllers>
 
     <!-- ****************** -->

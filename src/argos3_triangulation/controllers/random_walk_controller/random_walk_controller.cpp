@@ -281,14 +281,6 @@ void CFootBotRandomWalk::ControlStep() {
 
         m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
 
-//        if (m_counter > 0) {
-//            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, -m_fWheelVelocity);
-//        } else {
-//            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
-//
-//            // TODO: add random counter of turning with a random chance
-//            // TODO: might want to implement a state machine
-//        }
     } else {
         /* Turn, depending on the sign of the angle */
         if (cAngle.GetValue() > 0.0f) {

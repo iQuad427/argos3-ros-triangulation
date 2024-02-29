@@ -6,6 +6,8 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs)
 add_message_files(
         DIRECTORY msg
         FILES
+        Distance.msg
+        Distances.msg
         Item.msg
         Matrix.msg
         Agent.msg)

@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="compute_triangulation" type="matrix_construction.py" name="mainA" output="screen" cwd="node" args="$(arg a) $(arg n)"></node>
+<!--     <node pkg="compute_triangulation" type="matrix_construction.py" name="mainB" output="screen" cwd="node" args="$(arg b) $(arg n)"></node> -->
+<!--     <node pkg="compute_triangulation" type="matrix_construction.py" name="mainC" output="screen" cwd="node" args="$(arg c) $(arg n)"></node> -->
+<!--     <node pkg="compute_triangulation" type="matrix_construction.py" name="mainD" output="screen" cwd="node" args="$(arg d) $(arg n)"></node> -->
+</launch>

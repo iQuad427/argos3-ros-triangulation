@@ -4,4 +4,5 @@ include_directories(${CMAKE_SOURCE_DIR}/controllers)
 add_subdirectory(triangulation_controller)
 add_subdirectory(random_walk_controller)
 add_subdirectory(morphogenesis_controller)
+add_subdirectory(communication_controller)
 
