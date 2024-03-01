@@ -4,7 +4,7 @@
 
 # CMake
 /src/cmake-build-debug
-/src/argos3_triangulation/old_cmake_lists.txt
+/src/argos3_trilateration/old_cmake_lists.txt
 
 # Lost files
 .catkin_workspace

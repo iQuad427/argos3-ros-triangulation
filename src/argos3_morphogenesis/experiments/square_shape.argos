@@ -1,0 +1,129 @@
+<?xml version="1.0" ?>
+<argos-configuration>
+
+    <!-- ************************* -->
+    <!-- * General configuration * -->
+    <!-- ************************* -->
+    <framework>
+        <system threads="0" />
+        <experiment length="0"
+                    ticks_per_second="10"
+                    random_seed="124" />
+    </framework>
+
+    <!-- *************** -->
+    <!-- * Controllers * -->
+    <!-- *************** -->
+    <controllers>
+        <base_controller id="fdc" library="devel/lib/libbase_controller">
+            <actuators>
+                <!-- Differential steering actuators -->
+                <differential_steering implementation="default" />
+                <!-- Range and Bearing actuators -->
+                <range_and_bearing implementation="default" />
+            </actuators>
+            <sensors>
+                <!-- Proximity sensors -->
+                <footbot_proximity implementation="default" show_rays="true" />
+                <!-- Range and Bearing sensors -->
+                <range_and_bearing implementation="medium"
+                                   medium="rab"
+                                   noise_std_dev="0"
+                                   packet_drop_prob="0.9"
+                                   show_rays="true" />
+            </sensors>
+            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="4" />
+        </base_controller>
+        <base_controller id="fdc2" library="devel/lib/libbase_controller">
+            <actuators>
+                <!-- Differential steering actuators -->
+                <differential_steering implementation="default" />
+                <!-- Range and Bearing actuators -->
+                <range_and_bearing implementation="default" />
+            </actuators>
+            <sensors>
+                <!-- Proximity sensors -->
+                <footbot_proximity implementation="default" show_rays="true" />
+                <!-- Range and Bearing sensors -->
+                <range_and_bearing implementation="medium"
+                                   medium="rab"
+                                   noise_std_dev="0"
+                                   packet_drop_prob="0.9"
+                                   show_rays="true" />
+            </sensors>
+            <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="4" />
+        </base_controller>
+    </controllers>
+
+    <!-- ****************** -->
+    <!-- * Loop functions * -->
+    <!-- ****************** -->
+    <loop_functions library="devel/lib/libstatistics_loop_functions"
+                    label="statistics_loop_functions"
+                    num_robots="4" />
+
+
+    <!-- *********************** -->
+    <!-- * Arena configuration * -->
+    <!-- *********************** -->
+    <arena size="5, 5, 1" center="0,0,0.5">
+
+        <box id="wall_north" size="4,0.1,0.5" movable="false">
+            <body position="0,2,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_south" size="4,0.1,0.5" movable="false">
+            <body position="0,-2,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_east" size="0.1,4,0.5" movable="false">
+            <body position="2,0,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_west" size="0.1,4,0.5" movable="false">
+            <body position="-2,0,0" orientation="0,0,0" />
+        </box>
+
+        <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >
+            <body orientation="0,0,0" position="1,0,0" />
+            <controller config="fdc2" />
+        </foot-bot>
+        <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
+            <body orientation="0,0,0" position="-1,0,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
+            <body orientation="0,0,0" position="0,1,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
+            <body orientation="0,0,0" position="0,-1,0" />
+            <controller config="fdc" />
+        </foot-bot>
+    </arena>
+
+    <!-- ******************* -->
+    <!-- * Physics engines * -->
+    <!-- ******************* -->
+    <physics_engines>
+        <dynamics2d id="dyn2d" />
+    </physics_engines>
+
+    <!-- ********* -->
+    <!-- * Media * -->
+    <!-- ********* -->
+    <media>
+        <range_and_bearing id="rab" check_occlusions="true" />
+    </media>
+
+    <!-- ****************** -->
+    <!-- * Visualization * -->
+    <!-- ****************** -->
+    <visualization>
+        <qt-opengl>
+            <camera>
+                <placements>
+                    <placement index="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />
+                </placements>
+            </camera>
+        </qt-opengl>
+    </visualization>
+
+</argos-configuration>

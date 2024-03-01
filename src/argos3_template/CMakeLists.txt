@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.12)
-project(argos3_triangulation)
+project(argos3_template)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 
@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tri_msgs
+  morpho_msgs
 )
 
 #add_message_files(
@@ -19,6 +20,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   tri_msgs
+  morpho_msgs
 )
 
 catkin_package(

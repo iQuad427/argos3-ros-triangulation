@@ -189,8 +189,8 @@ void CFootBotCommunication::ControlStep() {
 
     /** State Machine based Movement */
 
-    std::cout << m_state << std::endl;
-    std::cout << m_gradient << std::endl;
+//    std::cout << m_state << std::endl;
+//    std::cout << m_gradient << std::endl;
 
     /* State Transitions */
     if (m_state == MOVE) {

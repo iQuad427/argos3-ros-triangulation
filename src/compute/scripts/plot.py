@@ -4,7 +4,7 @@ import pickle
 import matplotlib.pyplot as plt
 from numpy.linalg import svd
 
-from src.compute_triangulation.scripts.utils import find_rotation_matrix
+from src.compute.scripts.utils import find_rotation_matrix
 
 if __name__ == '__main__':
     # Read the output file, and plot the error over time

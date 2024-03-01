@@ -2,7 +2,6 @@
 #include <argos3/core/simulator/simulator.h>
 #include <argos3/core/utility/configuration/argos_configuration.h>
 #include <argos3/plugins/robots/foot-bot/simulator/footbot_entity.h>
-#include <argos3_triangulation/controllers/triangulation_controller/triangulation_controller.h>
 
 /****************************************/
 /****************************************/
@@ -27,7 +26,7 @@ void CTriangulationLoopFunctions::InitROS() {
     //get e-puck ID
     std::stringstream name;
     name.str("");
-    name << "loop_function"; // fbX
+    name << "simulation"; // fbX
 
     //init ROS
     if (!ros::isInitialized()) {
@@ -49,7 +48,10 @@ void CTriangulationLoopFunctions::InitROS() {
     // Prefill Messages
     m_matrixMessage.header.frame_id = publisherName.str();
     m_matrixMessage.agent_id = (uint8_t) 0;
-    m_matrixMessage.translate = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'};
+
+    for (int i = 0; i < m_nRobots; ++i) {
+        m_matrixMessage.translate.push_back('A' + i);
+    }
 
     // Define Matrix Dimensions (constant for now)
     std_msgs::MultiArrayDimension dim_1;
@@ -70,10 +72,6 @@ void CTriangulationLoopFunctions::InitROS() {
 
 void CTriangulationLoopFunctions::ControlStepROS() {
     if (ros::ok()) {
-        std::stringstream name;
-        name.str("");
-        name << "loop_function";
-
         /* Fill in a message and publish using the publisher node */
         m_matrixMessage.header.stamp = ros::Time::now();
 
@@ -131,7 +129,7 @@ void CTriangulationLoopFunctions::Reset() {
          it != tFBMap.end();
          ++it) {
         /* Create a pointer to the current foot-bot */
-        CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
+        // CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
         // Get Position : pcFB->GetEmbodiedEntity().GetOriginAnchor().Position
     }
 }

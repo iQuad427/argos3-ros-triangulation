@@ -29,7 +29,7 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0"
-                                   packet_drop_prob="0.92"
+                                   packet_drop_prob="0"
                                    show_rays="true" />
             </sensors>
             <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="4" />
@@ -48,7 +48,7 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0"
-                                   packet_drop_prob="0.92"
+                                   packet_drop_prob="0"
                                    show_rays="true" />
             </sensors>
             <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="4" />
