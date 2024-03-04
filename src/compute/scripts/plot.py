@@ -13,7 +13,7 @@ if __name__ == '__main__':
     # Expected position (4 points on the corner of square of 100 of side)
     expected = np.array([[0, 0], [0, 100], [100, 0], [100, 100]])
 
-    with open("output.txt", "rb") as f:
+    with open("output/output.txt", "rb") as f:
         error = []
 
         data = pickle.load(f)

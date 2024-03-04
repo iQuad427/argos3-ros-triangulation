@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="compute" type="main.py" name="mainA" output="screen" args="$(arg a)"></node>
+</launch>

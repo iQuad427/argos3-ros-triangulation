@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="statistics" type="main.py" name="writer" output="screen" cwd="node"></node>
+</launch>

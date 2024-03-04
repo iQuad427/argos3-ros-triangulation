@@ -135,10 +135,12 @@ private:
     int m_nRobots;
 
     /* ROS Publisher */
+    ros::Publisher m_distancePublisher;
     ros::Publisher m_distancesPublisher;
     ros::Subscriber m_directionSubscriber;
 
-    tri_msgs::Distances m_distanceMessage;
+    tri_msgs::Distance m_distanceMessage;
+    tri_msgs::Distances m_distancesMessage;
     morpho_msgs::Direction m_directionMessage;
 
     static float m_gradient;

@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="compute_triangulation" type="main.py" name="mainA" output="screen" args="$(arg a)"></node>
-</launch>

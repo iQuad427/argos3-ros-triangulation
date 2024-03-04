@@ -43,15 +43,19 @@ void CFootBotBase::InitROS() {
 
     // ROS access node
     ros::NodeHandle pub_node;
+    ros::NodeHandle self_pub_node;
     ros::NodeHandle sub_node;
 
     std::stringstream publisherName;
+    std::stringstream selfPublisherName;
     std::stringstream subscriberName;
 
     publisherName << name.str() << "/distances";
+    selfPublisherName << name.str() << "/distance";
     subscriberName << name.str() << "/direction";
 
     // Register the publisher to the ROS master
+    m_distancePublisher = self_pub_node.advertise<tri_msgs::Distance>(selfPublisherName.str(), 10);
     m_distancesPublisher = pub_node.advertise<tri_msgs::Distances>(publisherName.str(), 10);
     m_directionSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
 }
@@ -65,10 +69,19 @@ void CFootBotBase::CallbackROS(const morpho_msgs::Direction::ConstPtr& msg) {
 void CFootBotBase::ControlStepROS() {
     if (ros::ok()) {
         // Publish the message
-        m_distancesPublisher.publish(m_distanceMessage);
+        if (m_distancesMessage.robot_id != 0) {
+            m_distancesPublisher.publish(m_distancesMessage);
 
-        // Clean message for next iteration
-        m_distanceMessage.ranges.clear();
+            // Clean message for next iteration
+            m_distancesMessage.robot_id = 0;
+            m_distancesMessage.ranges.clear();
+        }
+        if (m_distanceMessage.other_robot_id != 0) {
+            m_distancePublisher.publish(m_distanceMessage);
+
+            // Clean the message for next iteration
+            m_distanceMessage.other_robot_id = 0;
+        }
 
         //update ROS status
         ros::spinOnce();
@@ -143,22 +156,26 @@ void CFootBotBase::ControlStep() {
         if (initiator_id != '\0' && responder_id != '\0') {
             // TODO: could also want to replace by average of previous and current to even out the result
             m_distanceTable[(int) responder_id - 'A'] = std::make_pair(tPackets[un_SelectedPacket].Range, 1);
+
+            m_distanceMessage.other_robot_id = (int) responder_id;
+            m_distanceMessage.distance = tPackets[un_SelectedPacket].Range;
+            m_distanceMessage.certainty = 1.0f;
         }
 
         float range;
 
         tri_msgs::Distance item;
 
-        m_distanceMessage.robot_id = (int) responder_id;
+        m_distancesMessage.robot_id = (int) responder_id;
 
         for (int k = 0; k < m_nRobots; ++k) {
             data >> range;
 
             item.other_robot_id = 'A' + k;
             item.distance = (Real) range;
-            item.certainty = (float) 1; // TODO add certainty factor (should come from other robot) => data >> certainty
+            item.certainty = (float) 1.0f; // TODO add certainty factor (should come from other robot) => data >> certainty
 
-            m_distanceMessage.ranges.push_back(item);
+            m_distancesMessage.ranges.push_back(item);
         }
     }
 
