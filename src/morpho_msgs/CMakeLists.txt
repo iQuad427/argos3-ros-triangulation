@@ -6,7 +6,9 @@ find_package(catkin REQUIRED COMPONENTS message_generation std_msgs)
 add_message_files(
         DIRECTORY msg
         FILES
-        Direction.msg)
+        Direction.msg
+        Angle.msg
+)
 
 generate_messages(DEPENDENCIES std_msgs)
 

@@ -2,10 +2,16 @@ import math
 
 import numpy as np
 from numpy.linalg import svd
-import matplotlib.pyplot as plt
 from sklearn.manifold import MDS
 
 from morpho_msgs.msg import Direction
+
+
+def MDS_fitting(matrix):
+    mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True)
+    mds_coors = mds.fit_transform(matrix)
+
+    return mds_coors
 
 
 def find_rotation_matrix(X, Y):

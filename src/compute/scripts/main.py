@@ -7,11 +7,10 @@ import numpy as np
 import rospy
 import matplotlib.pyplot as plt
 
-from morpho_msgs.msg import Direction
+from morpho_msgs.msg import Direction, Angle
 from tri_msgs.msg import Distances, Distance
 from utils import compute_direction, find_rotation_matrix
-
-from numpy.linalg import svd
+from direction import generate_morph_msg
 
 from sklearn.manifold import MDS
 import matplotlib
@@ -31,23 +30,21 @@ ax = fig.gca()
 canvas = agg.FigureCanvasAgg(fig)
 renderer = canvas.get_renderer()
 
-pygame.display.set_caption("Matplotlib with Pygame")
+pygame.display.set_caption("Relative Trilateration of Swarm")
 
 window = pygame.display.set_mode((600, 600), DOUBLEBUF)
 screen = pygame.display.get_surface()
 
 clock = pygame.time.Clock()
 
-previous_plot = None
 distance_matrix = None
 distance_table = None
+modified = False
 
 
-def update_plot():
-    global distance_matrix, previous_plot
-
-    if distance_matrix is not None:
-        matrix = distance_matrix
+def update_plot(distances, ref_plot):
+    if distances is not None:
+        matrix = distances
 
         # Update the data in the plot
         # Make sure the matrix is symmetric
@@ -58,14 +55,14 @@ def update_plot():
         embedding = mds.fit_transform(matrix)
 
         # Rotate dots to match previous plot
-        if previous_plot is not None:
-            rotation = find_rotation_matrix(previous_plot.T, embedding.T)
+        if ref_plot is not None:
+            rotation = find_rotation_matrix(ref_plot.T, embedding.T)
 
             # Apply the rotation
             embedding = embedding @ rotation
 
             # First, find the centroid of the original points
-            centroid = np.mean(previous_plot, axis=0)
+            centroid = np.mean(ref_plot, axis=0)
 
             # Then, find the centroid of the MDS points
             embedding_centroid = np.mean(embedding, axis=0)
@@ -112,15 +109,8 @@ def update_plot():
     return None
 
 
-def MDS_fitting(matrix):
-    mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True)
-    mds_coors = mds.fit_transform(matrix)
-
-    return mds_coors
-
-
 def callback(data):
-    global distance_matrix
+    global distance_matrix, modified
 
     if distance_matrix is None:
         raise ValueError("Distance matrix and distance table should be created at this point")
@@ -140,6 +130,8 @@ def callback(data):
 
         distance_matrix[x, y] = distance
 
+    modified = True
+
 
 def self_callback(data, args):
     global distance_matrix, distance_table
@@ -153,7 +145,7 @@ def self_callback(data, args):
     distance = data.distance
     # certainty = data.certainty
 
-    distance_table[self_idx] = distance
+    distance_table[robot_idx] = distance
 
     x = self_idx
     y = robot_idx
@@ -182,7 +174,7 @@ def create_matrix(n: int):
 
 
 def listener():
-    global previous_plot
+    global distance_matrix, distance_table, modified
 
     ros_launch_param = sys.argv[1]
 
@@ -191,15 +183,24 @@ def listener():
 
     create_matrix(n_robots)
 
+    if distance_matrix is None or distance_table is None:
+        raise ValueError("Distance table should exist at this point, ensure that you called create_matrix() beforehand")
+
     rospy.init_node('listener', anonymous=True)
 
     rospy.Subscriber(f'/{ros_launch_param}/distances', Distances, callback)
     rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, self_callback, (self_id,))
-    pub = rospy.Publisher(f'/{ros_launch_param}/direction', Direction, queue_size=10)
+    pub = rospy.Publisher(f'/{ros_launch_param}/direction', Angle, queue_size=10)
 
     data = []
-    max_gradient = 0.1
-    previous_gradient = 0
+
+    counter = 0
+    invert_direction = False
+
+    # Save previous values
+    previous_plot = None
+    current_plot = update_plot(distance_matrix, previous_plot)
+    previous_table = np.copy(distance_table)
 
     with open("output/output.txt", "wb") as f:
         crashed = False
@@ -208,31 +209,35 @@ def listener():
                 if event.type == pygame.QUIT or rospy.is_shutdown():
                     crashed = True
 
-            # Update the data in the plot
-            current_plot = update_plot()
-            msg = compute_direction(previous_plot, current_plot)
+            if modified:  # Only render and send message if data has changed
+                # TODO: modification should only take place after noise mitigation processes.
+                #       Here, it only indicates that new data was received from another agent.
 
-            previous_plot = current_plot
+                # Update the data in the plot
+                current_plot = update_plot(distance_matrix, previous_plot)
+                modified = False
 
+            # Save the data for later stats
+            if current_plot is not None:
+                data.append(current_plot)
+
+            # Generate morphogenesis enabling message
+            msg = generate_morph_msg(self_id - ord('A'), current_plot, previous_table, distance_table)
+
+            # Save current embedding found by MDS to compare with next iteration
+            previous_table = np.copy(distance_table)
+            previous_plot = np.copy(current_plot)
+
+            # Send the message
             if msg is not None:
-                msg.gradient = (msg.gradient + previous_gradient)/2
+                if invert_direction:
+                    msg.direction = not msg.direction
 
-                if abs(msg.gradient) > max_gradient:
-                    max_gradient = abs(msg.gradient)
-
-                msg.gradient = msg.gradient/max_gradient
-                msg.activation = 1 / (1 + math.exp(-msg.gradient))
-
-                print(msg)
                 pub.publish(msg)
 
-            # Update the data in the plot
-            embedding = update_plot()
-            if embedding is not None:
-                data.append(embedding)
-                # print(embedding)
-
-            clock.tick(30)  # Limit to 30 frames per second
+            previous_msg = msg
+            clock.tick(60)  # Limit to 30 frames per second
+            counter += 1
 
         pickle.dump(data, f)
 

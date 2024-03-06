@@ -9,8 +9,8 @@
 /****************************************/
 
 float CFootBotBase::m_distance;
-float CFootBotBase::m_gradient;
-float CFootBotBase::m_activation;
+float CFootBotBase::m_angle;
+bool CFootBotBase::m_direction;
 
 CFootBotBase::CFootBotBase() :
         m_pcWheels(nullptr),
@@ -60,10 +60,10 @@ void CFootBotBase::InitROS() {
     m_directionSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
 }
 
-void CFootBotBase::CallbackROS(const morpho_msgs::Direction::ConstPtr& msg) {
-    m_gradient = msg->gradient;
+void CFootBotBase::CallbackROS(const morpho_msgs::Angle::ConstPtr& msg) {
     m_distance = msg->distance;
-    m_activation = msg->activation;
+    m_angle = msg->angle;
+    m_direction = msg->direction;
 }
 
 void CFootBotBase::ControlStepROS() {
@@ -108,6 +108,8 @@ void CFootBotBase::Init(TConfigurationNode &t_node) {
     GetNodeAttributeOrDefault(t_node, "size", m_unBandWidth, m_unBandWidth);
 
     GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
+
+    std::cout << m_fWheelVelocity << std::endl;
 
     // State machine
     m_state = MOVE;
@@ -206,25 +208,56 @@ void CFootBotBase::ControlStep() {
 
     /** State Machine based Movement */
 
-//    std::cout << m_state << std::endl;
-//    std::cout << m_gradient << std::endl;
+    // TODO: Add an AVOID State to ensure that robots does not collide with each other.
+    //       Best way would be to have a path planning occurring in order to avoid collisions,
+    //       but its way more complicated than simple avoidance.
+
+    /* Get readings from proximity sensor */
+    const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
+    /* Sum them together */
+    CVector2 cAccumulator;
+    for (auto tProxRead: tProxReads) {
+        cAccumulator += CVector2(tProxRead.Value, tProxRead.Angle);
+    }
+    cAccumulator /= tProxReads.size();
+    /* If the angle of the vector is small enough and the closest obstacle
+     * is far enough, continue going straight, otherwise curve a little
+     */
+    CRadians cAngle = cAccumulator.Angle();
 
     /* State Transitions */
     if (m_state == MOVE) {
         if (m_distance > 5) {
-            if (m_gradient < 0) {
+            if (m_angle > 3.14 / 4) {
                 m_state = TURN; // Should try another direction
-                m_counter = m_activation * 100;
+                if (m_direction) {
+                    m_state = TURN_L;
+                } else {
+                    m_state = TURN_R;
+                }
+                m_counter = (int) (210 / m_fWheelVelocity) * (m_angle / PI);
+            } else {
+                if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
+                    cAccumulator.Length() < m_fDelta) {
+                    m_state = MOVE; // Do nothing
+                } else {
+                    m_state = AVOID;
+                }
             }
         } else {
             m_state = STOP;
         }
-    } else if (m_state == TURN) {
+    } else if (m_state == TURN || m_state == TURN_L || m_state == TURN_R) {
         if (m_counter <= 0) {
             m_state = GO;
-            m_counter = 20;
+            m_counter = 50;
         } else {
             m_counter--;
+        }
+    } else if (m_state == AVOID) {
+        if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
+            cAccumulator.Length() < m_fDelta) {
+            m_state = MOVE;
         }
     } else if (m_state == GO) {
         if (m_counter <= 0) {
@@ -239,23 +272,38 @@ void CFootBotBase::ControlStep() {
     }
 
     /* State Action */
-    switch (m_state) {
-        case MOVE :
-//            std::cout << m_state << ": moving forward" << std::endl;
-            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
-            break;
-        case GO:
-//            std::cout << m_state << ": going forward" << std::endl;
-            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
-            break;
-        case TURN:
-//            std::cout << m_state << ": turning" << std::endl;
-            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, -m_fWheelVelocity);
-            break;
-        case STOP:
-//            std::cout << m_state << ": stopped" << std::endl;
-            m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
-            break;
+    if (m_fWheelVelocity > 0) {
+        switch (m_state) {
+            case MOVE :
+                std::cout << m_state << ": moving forward" << std::endl;
+                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
+                break;
+            case GO:
+                std::cout << m_state << ": going forward" << std::endl;
+                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
+                break;
+            case TURN_L:
+                std::cout << m_state << ": turning" << std::endl;
+                std::cout << m_counter << std::endl;
+                m_pcWheels->SetLinearVelocity(-m_fWheelVelocity, m_fWheelVelocity);
+                break;
+            case TURN_R:
+                std::cout << m_state << ": turning" << std::endl;
+                std::cout << m_counter << std::endl;
+                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, -m_fWheelVelocity);
+                break;
+            case AVOID:
+                if (cAngle.GetValue() > 0.0f) {
+                    m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
+                } else {
+                    m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
+                }
+                break;
+            case STOP:
+                std::cout << m_state << ": stopped" << std::endl;
+                m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
+                break;
+        }
     }
 
     ControlStepROS();

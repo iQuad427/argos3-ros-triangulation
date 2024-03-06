@@ -42,13 +42,18 @@
 /* ROS dependencies */
 #include "ros/ros.h"
 #include <morpho_msgs/Direction.h>
+#include <morpho_msgs/Angle.h>
 #include <tri_msgs/Distance.h>
 #include <tri_msgs/Distances.h>
 
 #define STOP 0
 #define MOVE 1
 #define TURN 2
+#define TURN_L 21
+#define TURN_R 22
 #define GO   3
+#define AVOID 4
+#define PI 3.14159265
 
 // Define a type for the pair of floats
 typedef std::pair<float, float> DistanceFactorPair;
@@ -115,7 +120,7 @@ public:
 
     /* ROS related methods */
     virtual void InitROS();
-    static void CallbackROS(const morpho_msgs::Direction::ConstPtr& msg);
+    static void CallbackROS(const morpho_msgs::Angle::ConstPtr& msg);
     virtual void ControlStepROS();
 
 private:
@@ -141,11 +146,11 @@ private:
 
     tri_msgs::Distance m_distanceMessage;
     tri_msgs::Distances m_distancesMessage;
-    morpho_msgs::Direction m_directionMessage;
+    morpho_msgs::Angle m_directionMessage;
 
-    static float m_gradient;
     static float m_distance;
-    static float m_activation;
+    static float m_angle;
+    static bool m_direction;
 
     int m_counter;
 

@@ -1,6 +1,6 @@
 <launch>
     <node pkg="compute" type="main.py" name="mainA" output="screen" cwd="node" args="$(arg a) $(arg n)"></node>
-<!--     <node pkg="compute" type="main.py" name="mainB" output="screen" cwd="node" args="$(arg b) $(arg n)"></node> -->
-<!--     <node pkg="compute" type="main.py" name="mainC" output="screen" cwd="node" args="$(arg c) $(arg n)"></node> -->
-<!--     <node pkg="compute" type="main.py" name="mainD" output="screen" cwd="node" args="$(arg d) $(arg n)"></node> -->
+    <node pkg="compute" type="main.py" name="mainB" output="screen" cwd="node" args="$(arg b) $(arg n)"></node>
+    <node pkg="compute" type="main.py" name="mainC" output="screen" cwd="node" args="$(arg c) $(arg n)"></node>
+    <node pkg="compute" type="main.py" name="mainD" output="screen" cwd="node" args="$(arg d) $(arg n)"></node>
 </launch>
