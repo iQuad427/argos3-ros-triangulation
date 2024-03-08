@@ -88,6 +88,11 @@ def generate_morph_msg(agent, plot, ref_distances, distances):
         target_vector[0] * math.sin(math.pi / 2) + target_vector[1] * math.cos(math.pi / 2)
     ])
 
+    print(ref_distances - distances)
+
+    print(-target_vector)
+    print(total_vector)
+
     theta = np.arccos(np.dot(-target_vector, total_vector) / (np.linalg.norm(target_vector) * np.linalg.norm(total_vector)))
 
     # Find direction of rotation (compared to plot: True if trigonometric, False if counter-trigonometric)

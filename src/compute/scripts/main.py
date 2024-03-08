@@ -51,7 +51,7 @@ def update_plot(distances, ref_plot):
         matrix = (matrix + matrix.T)  # removed '/2' because triangular matrix
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
-        mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
+        mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=0)
         embedding = mds.fit_transform(matrix)
 
         # Rotate dots to match previous plot
@@ -82,8 +82,8 @@ def update_plot(distances, ref_plot):
         ax.set_title('MDS Scatter Plot')
 
         # Set the axes limits (customize as needed)
-        ax.set_xlim(-200, 200)
-        ax.set_ylim(-200, 200)
+        ax.set_xlim(-300, 300)
+        ax.set_ylim(-300, 300)
 
         # Put grid on the plot
         ax.grid(color='grey', linestyle='-', linewidth=0.1)
@@ -199,6 +199,7 @@ def listener():
 
     # Save previous values
     previous_plot = None
+    previous_msg = Direction()
     current_plot = update_plot(distance_matrix, previous_plot)
     previous_table = np.copy(distance_table)
 
@@ -228,15 +229,11 @@ def listener():
             previous_table = np.copy(distance_table)
             previous_plot = np.copy(current_plot)
 
-            # Send the message
-            if msg is not None:
-                if invert_direction:
-                    msg.direction = not msg.direction
-
+            if msg.angle != previous_msg.angle:
                 pub.publish(msg)
 
             previous_msg = msg
-            clock.tick(60)  # Limit to 30 frames per second
+            clock.tick(5)  # Limit to 30 frames per second
             counter += 1
 
         pickle.dump(data, f)

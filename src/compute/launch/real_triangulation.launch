@@ -3,4 +3,7 @@
     <node pkg="compute" type="main.py" name="mainB" output="screen" cwd="node" args="$(arg b) $(arg n)"></node>
     <node pkg="compute" type="main.py" name="mainC" output="screen" cwd="node" args="$(arg c) $(arg n)"></node>
     <node pkg="compute" type="main.py" name="mainD" output="screen" cwd="node" args="$(arg d) $(arg n)"></node>
+    <node pkg="compute" type="main.py" name="mainE" output="screen" cwd="node" args="$(arg e) $(arg n)"></node>
 </launch>
+
+<!--  roslaunch compute real_triangulation.launch n:="4" a:="fbA" b:="fbB" c:="fbC" d:="fbD" -->

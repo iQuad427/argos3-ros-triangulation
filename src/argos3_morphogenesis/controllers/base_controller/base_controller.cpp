@@ -109,10 +109,10 @@ void CFootBotBase::Init(TConfigurationNode &t_node) {
 
     GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
 
-    std::cout << m_fWheelVelocity << std::endl;
-
     // State machine
     m_state = MOVE;
+    m_invert = false;
+    m_counter = 0;
 
     // Fill the distance table with ones
     m_distanceTable.resize(m_nRobots, DistanceFactorPair(0, 1));
@@ -126,6 +126,11 @@ void CFootBotBase::Init(TConfigurationNode &t_node) {
 void CFootBotBase::Reset() {
     // Fill the table with ones
     m_distanceTable.resize(m_nRobots, DistanceFactorPair(0, 1));
+
+    // State machine
+    m_state = MOVE;
+    m_invert = false;
+    m_counter = 0;
 }
 
 /****************************************/
@@ -206,11 +211,7 @@ void CFootBotBase::ControlStep() {
     // Send the message
     m_pcRangeAndBearingActuator->SetData(cMessage);
 
-    /** State Machine based Movement */
-
-    // TODO: Add an AVOID State to ensure that robots does not collide with each other.
-    //       Best way would be to have a path planning occurring in order to avoid collisions,
-    //       but its way more complicated than simple avoidance.
+    /** Obstacle Avoidance Vector Computation */
 
     /* Get readings from proximity sensor */
     const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
@@ -225,17 +226,21 @@ void CFootBotBase::ControlStep() {
      */
     CRadians cAngle = cAccumulator.Angle();
 
+    /** State Machine Based Movement */
+
+    // TODO: Add an AVOID State to ensure that robots does not collide with each other.
+    //       Best way would be to have a path planning occurring in order to avoid collisions,
+    //       but its way more complicated than simple avoidance.
+
     /* State Transitions */
-    if (m_state == MOVE) {
-        if (m_distance > 5) {
-            if (m_angle > 3.14 / 4) {
+    if (m_state == STOP) {
+        if (m_distance > 20) {
+            m_state = MOVE;
+        }
+    } else if (m_state == MOVE) {
+        if (m_distance > 20) {
+            if (m_angle > 3.14 / 8) {
                 m_state = TURN; // Should try another direction
-                if (m_direction) {
-                    m_state = TURN_L;
-                } else {
-                    m_state = TURN_R;
-                }
-                m_counter = (int) (210 / m_fWheelVelocity) * (m_angle / PI);
             } else {
                 if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
                     cAccumulator.Length() < m_fDelta) {
@@ -247,10 +252,31 @@ void CFootBotBase::ControlStep() {
         } else {
             m_state = STOP;
         }
-    } else if (m_state == TURN || m_state == TURN_L || m_state == TURN_R) {
+    } else if (m_state == TURN) {
+        // TODO: detect possible mirrored command
+        // Change the value of m_invert depending on the case detected
+        if (((m_previousAngle < m_angle && m_previousDirection == m_direction)
+            || (m_previousAngle > m_angle && m_previousDirection != m_direction))
+            && m_previousDistance < m_distance
+        ) {
+            std::cout << "inverting" << std::endl;
+            m_invert = !m_invert;
+        }
+
+        if (m_direction != m_invert) { // Logical XOR
+            m_state = TURN_L;
+        } else {
+            m_state = TURN_R;
+        }
+        m_counter = (int) (210 / m_fWheelVelocity) * (m_angle / PI);
+
+        m_previousAngle = m_angle;
+        m_previousDirection = m_direction;
+        m_previousDistance = m_distance;
+    } else if (m_state == TURN_L || m_state == TURN_R) {
         if (m_counter <= 0) {
             m_state = GO;
-            m_counter = 50;
+            m_counter = 20;
         } else {
             m_counter--;
         }
@@ -265,31 +291,21 @@ void CFootBotBase::ControlStep() {
         } else {
             m_counter--;
         }
-    } else if (m_state == STOP) {
-        if (m_distance > 5) {
-            m_state = MOVE;
-        }
     }
 
     /* State Action */
     if (m_fWheelVelocity > 0) {
         switch (m_state) {
             case MOVE :
-                std::cout << m_state << ": moving forward" << std::endl;
                 m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
                 break;
             case GO:
-                std::cout << m_state << ": going forward" << std::endl;
                 m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
                 break;
             case TURN_L:
-                std::cout << m_state << ": turning" << std::endl;
-                std::cout << m_counter << std::endl;
                 m_pcWheels->SetLinearVelocity(-m_fWheelVelocity, m_fWheelVelocity);
                 break;
             case TURN_R:
-                std::cout << m_state << ": turning" << std::endl;
-                std::cout << m_counter << std::endl;
                 m_pcWheels->SetLinearVelocity(m_fWheelVelocity, -m_fWheelVelocity);
                 break;
             case AVOID:
@@ -300,7 +316,7 @@ void CFootBotBase::ControlStep() {
                 }
                 break;
             case STOP:
-                std::cout << m_state << ": stopped" << std::endl;
+                std::cout << "ON GOAL" << std::endl;
                 m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
                 break;
         }

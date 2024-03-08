@@ -152,6 +152,11 @@ private:
     static float m_angle;
     static bool m_direction;
 
+    float m_previousAngle;
+    float m_previousDirection;
+    float m_previousDistance;
+
+    bool m_invert;
     int m_counter;
 
     // Movement State Machine
