@@ -55,21 +55,22 @@ def compute_positions(distances, ref_plot, beacons=None):
         matrix = (matrix + matrix.T)  # removed '/2' because triangular matrix
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
-        mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=0)
+        mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
         embedding = mds.fit_transform(matrix)
 
         # Rotate dots to match previous plot
         if ref_plot is not None:
-            rotation = find_rotation_matrix(ref_plot.T, embedding.T)
+            if beacons is None or len(beacons) < 2:
+                rotation = find_rotation_matrix(ref_plot.T, embedding.T)
+            else:
+                rotation = find_rotation_matrix(ref_plot[beacons].T, embedding[beacons].T)
 
             # Apply the rotation
             embedding = embedding @ rotation
 
-
             if beacons is None:
                 # First, find the centroid of the original points
                 previous_centroid = np.mean(ref_plot, axis=0)
-
                 # Then, find the centroid of the MDS points
                 current_centroid = np.mean(embedding, axis=0)
             else:
@@ -102,8 +103,8 @@ def update_plot(distances, embedding, uncertainty):
     ax.set_title('MDS Scatter Plot')
 
     # Set the axes limits (customize as needed)
-    ax.set_xlim(-300, 300)
-    ax.set_ylim(-300, 300)
+    ax.set_xlim(-600, 600)
+    ax.set_ylim(-600, 600)
 
     # Put grid on the plot
     ax.grid(color='grey', linestyle='-', linewidth=0.1)
@@ -111,13 +112,17 @@ def update_plot(distances, embedding, uncertainty):
     # Update the scatter plot data
     plt.scatter(embedding[:, 0], embedding[:, 1], c='r')
     plt.scatter(embedding[0, 0], embedding[0, 1], c='b')
+    plt.scatter(embedding[1, 0], embedding[1, 1], c='g')
+    plt.scatter(embedding[2, 0], embedding[2, 1], c='y')
+
+    distances = distances + distances.T
 
     for i, agent in enumerate(embedding):
         ax.add_patch(
             plt.Circle(
                 agent,
                 uncertainty[i],
-                color='g', fill=False
+                color='r', fill=False
             )
         )
         ax.add_patch(
@@ -128,6 +133,14 @@ def update_plot(distances, embedding, uncertainty):
                 linewidth=10, alpha=0.1
             )
         )
+        # ax.add_patch(
+        #     plt.Circle(
+        #         agent,
+        #         distances[1, i],
+        #         color='g', fill=False,
+        #         linewidth=10, alpha=0.1
+        #     )
+        # )
 
     # Redraw the canvas
     canvas.draw()
@@ -222,10 +235,17 @@ def listener():
 
     ros_launch_param = sys.argv[1]
 
+    print(sys.argv)
+
     # Parse arguments
     self_id = ord(sys.argv[1][2])
     n_robots = int(sys.argv[2])
-    beacons = [ord(beacon) - ord("A") for beacon in sys.argv[3].split(" ")]
+
+    print(sys.argv[3])
+    if sys.argv[3] != "Z":
+        beacons = [ord(beacon) - ord("A") for beacon in sys.argv[3].split(",")]
+    else:
+        beacons = None
 
     create_matrix(n_robots)
 
