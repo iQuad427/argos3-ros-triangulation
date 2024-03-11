@@ -43,11 +43,10 @@ distance_table = None
 modified = False
 
 # Uncertainty on agents
-starting_uncertainty = math.inf
 last_update = None
 
 
-def update_plot(distances, ref_plot, uncertainty):
+def compute_positions(distances, ref_plot, beacons=None):
     if distances is not None:
         matrix = distances
 
@@ -66,60 +65,80 @@ def update_plot(distances, ref_plot, uncertainty):
             # Apply the rotation
             embedding = embedding @ rotation
 
-            # First, find the centroid of the original points
-            centroid = np.mean(ref_plot, axis=0)
 
-            # Then, find the centroid of the MDS points
-            embedding_centroid = np.mean(embedding, axis=0)
+            if beacons is None:
+                # First, find the centroid of the original points
+                previous_centroid = np.mean(ref_plot, axis=0)
+
+                # Then, find the centroid of the MDS points
+                current_centroid = np.mean(embedding, axis=0)
+            else:
+                # TODO: beacons should be the list of IDs of the beacons (therefore, need to modify code)
+                previous_centroid = np.mean(ref_plot[beacons], axis=0)
+                current_centroid = np.mean(embedding[beacons], axis=0)
 
             # Find the translation vector
-            translation = centroid - embedding_centroid
+            translation = previous_centroid - current_centroid
 
             # Translate the MDS points
             embedding = embedding + translation
 
-        # Reset the axes
-        ax.clear()
-
-        # Set the axes labels and title (customize as needed)
-        ax.set_xlabel('X-axis')
-        ax.set_ylabel('Y-axis')
-        ax.set_title('MDS Scatter Plot')
-
-        # Set the axes limits (customize as needed)
-        ax.set_xlim(-300, 300)
-        ax.set_ylim(-300, 300)
-
-        # Put grid on the plot
-        ax.grid(color='grey', linestyle='-', linewidth=0.1)
-
-        # Update the scatter plot data
-        plt.scatter(embedding[:, 0], embedding[:, 1], c='r')
-        plt.scatter(embedding[0, 0], embedding[0, 1], c='b')
-
-        for i, agent in enumerate(embedding):
-            ax.add_patch(
-                plt.Circle(
-                    agent,
-                    uncertainty[i],
-                    color='g', fill=False
-                )
-            )
-
-        # Redraw the canvas
-        canvas.draw()
-        renderer = canvas.get_renderer()
-        raw_data = renderer.tostring_rgb()
-
-        # Update the display
-        size = canvas.get_width_height()
-        surf = pygame.image.fromstring(raw_data, size, "RGB")
-        screen.blit(surf, (0, 0))
-        pygame.display.flip()
-
         return embedding
 
-    return None
+
+def update_plot(distances, embedding, uncertainty):
+    if distances is None:
+        raise ValueError("Distance matrix should be defined at this point")
+
+    if embedding is None:
+        return
+
+    # Reset the axes
+    ax.clear()
+
+    # Set the axes labels and title (customize as needed)
+    ax.set_xlabel('X-axis')
+    ax.set_ylabel('Y-axis')
+    ax.set_title('MDS Scatter Plot')
+
+    # Set the axes limits (customize as needed)
+    ax.set_xlim(-300, 300)
+    ax.set_ylim(-300, 300)
+
+    # Put grid on the plot
+    ax.grid(color='grey', linestyle='-', linewidth=0.1)
+
+    # Update the scatter plot data
+    plt.scatter(embedding[:, 0], embedding[:, 1], c='r')
+    plt.scatter(embedding[0, 0], embedding[0, 1], c='b')
+
+    for i, agent in enumerate(embedding):
+        ax.add_patch(
+            plt.Circle(
+                agent,
+                uncertainty[i],
+                color='g', fill=False
+            )
+        )
+        ax.add_patch(
+            plt.Circle(
+                agent,
+                distances[0, i],
+                color='b', fill=False,
+                linewidth=10, alpha=0.1
+            )
+        )
+
+    # Redraw the canvas
+    canvas.draw()
+    renderer = canvas.get_renderer()
+    raw_data = renderer.tostring_rgb()
+
+    # Update the display
+    size = canvas.get_width_height()
+    surf = pygame.image.fromstring(raw_data, size, "RGB")
+    screen.blit(surf, (0, 0))
+    pygame.display.flip()
 
 
 def callback(data):
@@ -188,7 +207,7 @@ def create_matrix(n: int):
     distance_table = np.ones((n,))
 
     # Create last update
-    last_update = np.zeros((n,)) * starting_uncertainty  # TODO
+    last_update = np.zeros((n,))
 
     if distance_matrix is None or distance_table is None:
         raise ValueError("Couldn't create distance matrix and/or distance table")
@@ -206,7 +225,7 @@ def listener():
     # Parse arguments
     self_id = ord(sys.argv[1][2])
     n_robots = int(sys.argv[2])
-    beacon = ord(sys.argv[3][2])
+    beacons = [ord(beacon) - ord("A") for beacon in sys.argv[3].split(" ")]
 
     create_matrix(n_robots)
 
@@ -224,7 +243,7 @@ def listener():
 
     # Save previous values
     previous_estimation = None  # Positions used to rotate the plot (avoid flickering)
-    position_estimation = update_plot(distance_matrix, previous_estimation, uncertainty)  # Current estimation of the positions
+    position_estimation = compute_positions(distance_matrix, previous_estimation, beacons=beacons)  # Current estimation of the positions
 
     # Positions used for direction estimation
     current_plot = None  # Idea: might want to update less often to have more distance measurements updates
@@ -238,18 +257,21 @@ def listener():
 
             # Direction estimation
             uncertainty = compute_uncertainty(last_update, 3, 10)
+            update_plot(distance_matrix, previous_estimation, uncertainty)
 
             if modified:  # Only render and send message if data has changed
                 # TODO: modification should only take place after noise mitigation processes.
                 #       Here, it only indicates that new data was received from another agent.
 
                 # Update the data in the plot
-                position_estimation = update_plot(distance_matrix, previous_estimation, uncertainty)
+                position_estimation = compute_positions(distance_matrix, previous_estimation, beacons=beacons)
                 modified = False
 
             # Save the data for later stats
             if position_estimation is not None:
                 data.append(position_estimation)
+
+            previous_estimation = np.copy(position_estimation)
 
             # Tick the update clock
             last_update = last_update + 1
