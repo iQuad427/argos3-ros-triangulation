@@ -1,5 +1,5 @@
 /* Include the controller definition */
-#include "base_controller.h"
+#include "walk_controller.h"
 /* Function definitions for XML parsing */
 #include <argos3/core/utility/configuration/argos_configuration.h>
 /* 2D vector definition */
@@ -8,11 +8,11 @@
 /****************************************/
 /****************************************/
 
-float CFootBotBase::m_distance;
-float CFootBotBase::m_angle;
-bool CFootBotBase::m_direction;
+float CFootBotWalk::m_distance;
+float CFootBotWalk::m_angle;
+bool CFootBotWalk::m_direction;
 
-CFootBotBase::CFootBotBase() :
+CFootBotWalk::CFootBotWalk() :
         m_pcWheels(nullptr),
         m_pcProximity(nullptr),
         m_pcRangeAndBearingSensor(nullptr),
@@ -28,7 +28,7 @@ CFootBotBase::CFootBotBase() :
 /****************************************/
 /****************************************/
 
-void CFootBotBase::InitROS() {
+void CFootBotWalk::InitROS() {
     //get e-puck ID
     std::stringstream name;
     name.str("");
@@ -60,13 +60,13 @@ void CFootBotBase::InitROS() {
     m_directionSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
 }
 
-void CFootBotBase::CallbackROS(const morpho_msgs::Angle::ConstPtr& msg) {
+void CFootBotWalk::CallbackROS(const morpho_msgs::Angle::ConstPtr& msg) {
     m_distance = msg->distance;
     m_angle = msg->angle;
     m_direction = msg->direction;
 }
 
-void CFootBotBase::ControlStepROS() {
+void CFootBotWalk::ControlStepROS() {
     if (ros::ok()) {
         // Publish the message
         if (m_distancesMessage.robot_id != 0) {
@@ -91,7 +91,7 @@ void CFootBotBase::ControlStepROS() {
 /****************************************/
 /****************************************/
 
-void CFootBotBase::Init(TConfigurationNode &t_node) {
+void CFootBotWalk::Init(TConfigurationNode &t_node) {
     // Get sensor/actuator handles
     m_pcWheels = GetActuator<CCI_DifferentialSteeringActuator>("differential_steering");
     m_pcProximity = GetSensor<CCI_FootBotProximitySensor>("footbot_proximity");
@@ -123,7 +123,7 @@ void CFootBotBase::Init(TConfigurationNode &t_node) {
 /****************************************/
 /****************************************/
 
-void CFootBotBase::Reset() {
+void CFootBotWalk::Reset() {
     // Fill the table with ones
     m_distanceTable.resize(m_nRobots, DistanceFactorPair(0, 1));
 
@@ -136,7 +136,7 @@ void CFootBotBase::Reset() {
 /****************************************/
 /****************************************/
 
-void CFootBotBase::ControlStep() {
+void CFootBotWalk::ControlStep() {
     /* Simulate Communication */
 
     /** Initiator */
@@ -213,6 +213,7 @@ void CFootBotBase::ControlStep() {
 
     /** Obstacle Avoidance Vector Computation */
 
+    /* Random Movement */
     /* Get readings from proximity sensor */
     const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
     /* Sum them together */
@@ -225,102 +226,20 @@ void CFootBotBase::ControlStep() {
      * is far enough, continue going straight, otherwise curve a little
      */
     CRadians cAngle = cAccumulator.Angle();
+    if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
+        cAccumulator.Length() < m_fDelta) {
 
-    /** State Machine Based Movement */
+        m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
 
-    // TODO: Add an AVOID State to ensure that robots does not collide with each other.
-    //       Best way would be to have a path planning occurring in order to avoid collisions,
-    //       but its way more complicated than simple avoidance.
-
-    /* State Transitions */
-    if (m_state == STOP) {
-        if (m_distance > 5) {
-            m_state = MOVE;
-        }
-    } else if (m_state == MOVE) {
-        if (m_distance > 5) {
-            if (m_angle > 3.14 / 8) {
-                m_state = TURN; // Should try another direction
-            } else {
-                if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
-                    cAccumulator.Length() < m_fDelta) {
-                    m_state = MOVE; // Do nothing
-                } else {
-                    m_state = AVOID;
-                }
-            }
+    } else {
+        /* Turn, depending on the sign of the angle */
+        if (cAngle.GetValue() > 0.0f) {
+            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
         } else {
-            m_state = STOP;
-        }
-    } else if (m_state == TURN) {
-        // TODO: detect possible mirrored command
-        // Change the value of m_invert depending on the case detected
-        if (((m_previousAngle < m_angle && m_previousDirection == m_direction)
-            || (m_previousAngle > m_angle && m_previousDirection != m_direction))
-            && m_previousDistance < m_distance
-        ) {
-            std::cout << "inverting" << std::endl;
-            m_invert = !m_invert;
-        }
-
-        if (m_direction != m_invert) { // Logical XOR
-            m_state = TURN_L;
-        } else {
-            m_state = TURN_R;
-        }
-        m_counter = (int) (210 / m_fWheelVelocity) * (m_angle / PI);
-
-        m_previousAngle = m_angle;
-        m_previousDirection = m_direction;
-        m_previousDistance = m_distance;
-    } else if (m_state == TURN_L || m_state == TURN_R) {
-        if (m_counter <= 0) {
-            m_state = GO;
-            m_counter = 20;
-        } else {
-            m_counter--;
-        }
-    } else if (m_state == AVOID) {
-        if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
-            cAccumulator.Length() < m_fDelta) {
-            m_state = MOVE;
-        }
-    } else if (m_state == GO) {
-        if (m_counter <= 0) {
-            m_state = MOVE;
-        } else {
-            m_counter--;
+            m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
         }
     }
 
-    /* State Action */
-    if (m_fWheelVelocity > 0) {
-        switch (m_state) {
-            case MOVE :
-                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
-                break;
-            case GO:
-                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
-                break;
-            case TURN_L:
-                m_pcWheels->SetLinearVelocity(-m_fWheelVelocity, m_fWheelVelocity);
-                break;
-            case TURN_R:
-                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, -m_fWheelVelocity);
-                break;
-            case AVOID:
-                if (cAngle.GetValue() > 0.0f) {
-                    m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
-                } else {
-                    m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
-                }
-                break;
-            case STOP:
-                std::cout << "ON GOAL" << std::endl;
-                m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
-                break;
-        }
-    }
 
     ControlStepROS();
 }
@@ -338,4 +257,4 @@ void CFootBotBase::ControlStep() {
  * controller class to instantiate.
  * See also the configuration files for an example of how this is used.
  */
-REGISTER_CONTROLLER(CFootBotBase, "base_controller")
+REGISTER_CONTROLLER(CFootBotWalk, "walk_controller")

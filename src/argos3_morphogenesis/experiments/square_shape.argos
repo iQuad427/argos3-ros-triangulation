@@ -15,7 +15,7 @@
     <!-- * Controllers * -->
     <!-- *************** -->
     <controllers>
-        <base_controller id="fdc" library="devel/lib/libbase_controller">
+        <walk_controller id="fdc" library="devel/lib/libwalk_controller">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -29,12 +29,12 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0"
-                                   packet_drop_prob="0.5"
+                                   packet_drop_prob="0.95"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="10" size="1000" num_robots="5" />
-        </base_controller>
-        <base_controller id="fdc2" library="devel/lib/libbase_controller">
+            <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="5" />
+        </walk_controller>
+        <walk_controller id="fdc2" library="devel/lib/libwalk_controller">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -48,11 +48,11 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0"
-                                   packet_drop_prob="0.5"
+                                   packet_drop_prob="0.95"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="10" size="1000" num_robots="5" />
-        </base_controller>
+            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="5" />
+        </walk_controller>
     </controllers>
 
     <!-- ****************** -->
@@ -82,24 +82,24 @@
         </box>
 
         <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.2,-1.5,0" />
-            <controller config="fdc2" />
-        </foot-bot>
-        <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="1.8,1.8,0" />
             <controller config="fdc" />
         </foot-bot>
-        <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
+        <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="-1.8,1.8,0" />
             <controller config="fdc" />
         </foot-bot>
-        <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
+        <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="-1.8,-1.8,0" />
             <controller config="fdc" />
         </foot-bot>
-        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >
+        <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="1.8,-1.8,0" />
             <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >
+            <body orientation="0,0,0" position="0,0,0" />
+            <controller config="fdc2" />
         </foot-bot>
     </arena>
 

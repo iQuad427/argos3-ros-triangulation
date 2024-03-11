@@ -61,6 +61,43 @@ class Vector:
         return Vector(x, y)
 
 
+def compute_direction(previous_plot, current_plot):
+    """
+    Compute direction to centroid of the swarm using evolution of shape estimation
+
+    :param previous_plot: previous positions of the swarm
+    :param current_plot: current positions of the swarm
+    :return: a Direction ROS message describing the evolution of distance and the angle to the centroid of the swarm
+    """
+
+    # Note: The pairwise evolution of distances between the agents (with the matrix of distances) may be computed
+    #       as a difference of the matrices to estimate the gradient and angle of the movement of the agent.
+
+    if previous_plot is not None and current_plot is not None:
+        # print(previous_plot)
+        # print(current_plot)
+        # Compute the centroid of the current and previous MDS coordinates
+        centroid_previous = np.mean(previous_plot, axis=0)
+        centroid_current = np.mean(current_plot, axis=0)
+
+        # Compute distance between agent and centroid
+        distance_before = np.linalg.norm(centroid_previous - previous_plot[0])
+        distance_after = np.linalg.norm(centroid_current - current_plot[0])
+
+        # Compute the gradient and angle of the movement
+        gradient = distance_before - distance_after
+        angle = math.atan2(centroid_current[1] - centroid_previous[1], centroid_current[0] - centroid_previous[0])
+
+        msg = Direction()
+
+        msg.distance = distance_after
+        msg.gradient = gradient
+        msg.angle = angle
+    else:
+        msg = None
+    return msg
+
+
 def generate_morph_msg(agent, plot, ref_distances, distances):
     """
     Generate a Direction message for the agent controller to head toward the right direction.
@@ -70,7 +107,7 @@ def generate_morph_msg(agent, plot, ref_distances, distances):
     :param ref_distances: previous known distances to reference agent
     :param distances: current distances to reference agent
 
-    :return: a Direction message for the robot controller to adapt the direction of the robot
+    :return: a Direction ROS message for the robot controller to adapt the direction of the robot
     """
     agent_vector = np.array([plot[agent, 0], plot[agent, 1]])
     total_vector = np.array([0, 0])
@@ -88,11 +125,6 @@ def generate_morph_msg(agent, plot, ref_distances, distances):
         target_vector[0] * math.sin(math.pi / 2) + target_vector[1] * math.cos(math.pi / 2)
     ])
 
-    print(ref_distances - distances)
-
-    print(-target_vector)
-    print(total_vector)
-
     theta = np.arccos(np.dot(-target_vector, total_vector) / (np.linalg.norm(target_vector) * np.linalg.norm(total_vector)))
 
     # Find direction of rotation (compared to plot: True if trigonometric, False if counter-trigonometric)
@@ -100,3 +132,6 @@ def generate_morph_msg(agent, plot, ref_distances, distances):
 
     return Angle(distance=np.linalg.norm(target_vector), angle=theta, direction=direction)
 
+
+def estimate_direction():
+    pass

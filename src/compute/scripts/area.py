@@ -37,12 +37,17 @@ screen = pygame.display.get_surface()
 
 clock = pygame.time.Clock()
 
+# Distance Measurements
 distance_matrix = None
 distance_table = None
 modified = False
 
+# Uncertainty on agents
+starting_uncertainty = math.inf
+last_update = None
 
-def update_plot(distances, ref_plot):
+
+def update_plot(distances, ref_plot, uncertainty):
     if distances is not None:
         matrix = distances
 
@@ -91,7 +96,15 @@ def update_plot(distances, ref_plot):
         # Update the scatter plot data
         plt.scatter(embedding[:, 0], embedding[:, 1], c='r')
         plt.scatter(embedding[0, 0], embedding[0, 1], c='b')
-        plt.scatter(*np.mean(embedding, axis=0), c='g')
+
+        for i, agent in enumerate(embedding):
+            ax.add_patch(
+                plt.Circle(
+                    agent,
+                    uncertainty[i],
+                    color='g', fill=False
+                )
+            )
 
         # Redraw the canvas
         canvas.draw()
@@ -110,12 +123,16 @@ def update_plot(distances, ref_plot):
 
 
 def callback(data):
-    global distance_matrix, modified
+    global distance_matrix, modified, last_update
 
-    if distance_matrix is None:
-        raise ValueError("Distance matrix and distance table should be created at this point")
+    if distance_matrix is None or last_update is None:
+        raise ValueError("Distance matrix, distance table and update table should be created at this point")
+
+    # TODO: create uncertainty system, uncertainty increase on measurements received a long time ago,
+    #       but also, when updated, choose the measurement with the least uncertainty
 
     robot_idx = data.robot_id - ord('A')  # starts at B because A (all) is the broadcast address
+    last_update[robot_idx] = 0
 
     for robot in data.ranges:
         other_robot_idx = robot.other_robot_id - ord('A')
@@ -136,10 +153,11 @@ def callback(data):
 def self_callback(data, args):
     global distance_matrix, distance_table
 
-    if distance_matrix is None or distance_table is None:
-        raise ValueError("Distance matrix and distance table should be created at this point")
+    if distance_matrix is None or distance_table is None or last_update is None:
+        raise ValueError("Distance matrix, distance table and update table should be created at this point")
 
     self_idx = args[0] - ord('A')
+    last_update[self_idx] = 0
 
     robot_idx = data.other_robot_id - ord('A')
     distance = data.distance
@@ -157,9 +175,9 @@ def self_callback(data, args):
 
 
 def create_matrix(n: int):
-    global distance_matrix, distance_table
+    global distance_matrix, distance_table, last_update, starting_uncertainty
 
-    # Create distance matrix
+    # Create distance matrix (upper triangle cells are ones)
     mask = np.triu_indices(n, k=1)
     matrix = np.zeros((n, n))
 
@@ -169,17 +187,26 @@ def create_matrix(n: int):
     # Create distance table
     distance_table = np.ones((n,))
 
+    # Create last update
+    last_update = np.zeros((n,)) * starting_uncertainty  # TODO
+
     if distance_matrix is None or distance_table is None:
         raise ValueError("Couldn't create distance matrix and/or distance table")
 
 
+def compute_uncertainty(update, speed, error):
+    return update * speed + error
+
+
 def listener():
-    global distance_matrix, distance_table, modified
+    global distance_matrix, distance_table, modified, last_update
 
     ros_launch_param = sys.argv[1]
 
+    # Parse arguments
     self_id = ord(sys.argv[1][2])
     n_robots = int(sys.argv[2])
+    beacon = ord(sys.argv[3][2])
 
     create_matrix(n_robots)
 
@@ -190,18 +217,17 @@ def listener():
 
     rospy.Subscriber(f'/{ros_launch_param}/distances', Distances, callback)
     rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, self_callback, (self_id,))
-    pub = rospy.Publisher(f'/{ros_launch_param}/direction', Angle, queue_size=10)
 
     data = []
 
-    counter = 0
-    invert_direction = False
+    uncertainty = compute_uncertainty(last_update, 3, 10)
 
     # Save previous values
-    previous_plot = None
-    previous_msg = Direction()
-    current_plot = update_plot(distance_matrix, previous_plot)
-    previous_table = np.copy(distance_table)
+    previous_estimation = None  # Positions used to rotate the plot (avoid flickering)
+    position_estimation = update_plot(distance_matrix, previous_estimation, uncertainty)  # Current estimation of the positions
+
+    # Positions used for direction estimation
+    current_plot = None  # Idea: might want to update less often to have more distance measurements updates
 
     with open("output/output.txt", "wb") as f:
         crashed = False
@@ -210,31 +236,24 @@ def listener():
                 if event.type == pygame.QUIT or rospy.is_shutdown():
                     crashed = True
 
+            # Direction estimation
+            uncertainty = compute_uncertainty(last_update, 3, 10)
+
             if modified:  # Only render and send message if data has changed
                 # TODO: modification should only take place after noise mitigation processes.
                 #       Here, it only indicates that new data was received from another agent.
 
                 # Update the data in the plot
-                current_plot = update_plot(distance_matrix, previous_plot)
+                position_estimation = update_plot(distance_matrix, previous_estimation, uncertainty)
                 modified = False
 
             # Save the data for later stats
-            if current_plot is not None:
-                data.append(current_plot)
+            if position_estimation is not None:
+                data.append(position_estimation)
 
-            # Generate morphogenesis enabling message
-            msg = generate_morph_msg(self_id - ord('A'), current_plot, previous_table, distance_table)
-
-            # Save current embedding found by MDS to compare with next iteration
-            previous_table = np.copy(distance_table)
-            previous_plot = np.copy(current_plot)
-
-            if msg.angle != previous_msg.angle:
-                pub.publish(msg)
-
-            previous_msg = msg
-            clock.tick(5)  # Limit to 30 frames per second
-            counter += 1
+            # Tick the update clock
+            last_update = last_update + 1
+            clock.tick(1)  # Limit to 30 frames per second
 
         pickle.dump(data, f)
 

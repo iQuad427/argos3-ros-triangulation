@@ -44,33 +44,3 @@ def find_rotation_matrix(X, Y):
 
     return R
 
-
-def compute_direction(previous_plot, current_plot):
-    # TODO: complete gradient and angle measurement
-    # Note: The pairwise evolution of distances between the agents (with the matrix of distances) may be computed
-    #       as a difference of the matrices to estimate the gradient and angle of the movement of the agent.
-
-    if previous_plot is not None and current_plot is not None:
-        # print(previous_plot)
-        # print(current_plot)
-        # Compute the centroid of the current and previous MDS coordinates
-        centroid_previous = np.mean(previous_plot, axis=0)
-        centroid_current = np.mean(current_plot, axis=0)
-
-        # Compute distance between agent and centroid
-        distance_before = np.linalg.norm(centroid_previous - previous_plot[0])
-        distance_after = np.linalg.norm(centroid_current - current_plot[0])
-
-        # Compute the gradient and angle of the movement
-        gradient = distance_before - distance_after
-        angle = math.atan2(centroid_current[1] - centroid_previous[1], centroid_current[0] - centroid_previous[0])
-
-        msg = Direction()
-
-        msg.distance = distance_after
-        msg.gradient = gradient
-        msg.angle = angle
-    else:
-        msg = None
-
-    return msg
