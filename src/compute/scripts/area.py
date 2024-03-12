@@ -88,7 +88,7 @@ def compute_positions(distances, ref_plot, beacons=None):
         return embedding
 
 
-def update_plot(distances, embedding, uncertainty):
+def update_plot(distances, embedding, measurement_uncertainty, time_uncertainty):
     if distances is None:
         raise ValueError("Distance matrix should be defined at this point")
 
@@ -123,7 +123,7 @@ def update_plot(distances, embedding, uncertainty):
         ax.add_patch(
             plt.Circle(
                 agent,
-                uncertainty[i],
+                time_uncertainty[i],
                 color='r', fill=False
             )
         )
@@ -132,7 +132,7 @@ def update_plot(distances, embedding, uncertainty):
                 agent,
                 distances[0, i],
                 color='b', fill=False,
-                linewidth=10+uncertainty[i], alpha=0.1
+                linewidth=10 / (1 - measurement_uncertainty[i]), alpha=0.1
             )
         )
 
@@ -166,8 +166,6 @@ def add_distance(robot_idx, data: Distance):
     if robot_idx > other_robot_idx:
         x = other_robot_idx
         y = robot_idx
-
-    print(data.certainty)
 
     # Only update if certainty is greater than the one of the previous measurement
     if certainty_matrix[x, y] < data.certainty:
@@ -220,7 +218,19 @@ def create_matrix(n: int):
         raise ValueError("Couldn't create distance matrix and/or certainty matrix")
 
 
-def compute_uncertainty(update, speed, error):
+def compute_measurement_uncertainty(certainty):
+    matrix = certainty + certainty.T
+
+    # Compute mean certainty for each agent distances (each row or column)
+    certainty = np.mean(matrix, axis=0)
+
+    print(certainty)
+    print(-certainty)
+
+    return (-certainty + 100) / 100  # (uncertainty factor)
+
+
+def compute_time_uncertainty(update, speed, error):
     return update * speed + error
 
 
@@ -251,7 +261,7 @@ def listener():
 
     data = []
 
-    uncertainty = compute_uncertainty(last_update, 3, 10)
+    uncertainty = compute_measurement_uncertainty(certainty_matrix)
 
     # Save previous values
     previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
@@ -268,8 +278,13 @@ def listener():
                     crashed = True
 
             # Direction estimation
-            uncertainty = compute_uncertainty(last_update, 3, 10)
-            update_plot(distance_matrix, previous_estimation, uncertainty)
+            measurement_uncertainty = compute_measurement_uncertainty(certainty_matrix)
+            time_uncertainty = compute_time_uncertainty(last_update, 3, 10)
+
+            print(measurement_uncertainty)
+            print(time_uncertainty)
+
+            update_plot(distance_matrix, previous_estimation, measurement_uncertainty, time_uncertainty)
 
             if modified:  # Only render and send message if data has changed
                 # TODO: modification should only take place after noise mitigation processes.
