@@ -139,6 +139,12 @@ void CFootBotWalk::Reset() {
 void CFootBotWalk::ControlStep() {
     /* Simulate Communication */
 
+    /** Update the Certainty Factor of the measurements */
+
+    for (uint16_t j = 0; j < m_nRobots; ++j) {
+        m_distanceTable[j].second = m_distanceTable[j].second * 0.99f;
+    }
+
     /** Initiator */
     /* Note: only simulating the reception of the acknowledgment message, which is sent by the responder
      *       after receiving the message from the initiator.
@@ -166,10 +172,11 @@ void CFootBotWalk::ControlStep() {
 
             m_distanceMessage.other_robot_id = (int) responder_id;
             m_distanceMessage.distance = tPackets[un_SelectedPacket].Range;
-            m_distanceMessage.certainty = 1.0f;
+            m_distanceMessage.certainty = 100;
         }
 
         float range;
+        float certainty;
 
         tri_msgs::Distance item;
 
@@ -177,10 +184,11 @@ void CFootBotWalk::ControlStep() {
 
         for (int k = 0; k < m_nRobots; ++k) {
             data >> range;
+            data >> certainty;
 
             item.other_robot_id = 'A' + k;
-            item.distance = (Real) range;
-            item.certainty = (float) 1.0f; // TODO add certainty factor (should come from other robot) => data >> certainty
+            item.distance = (float) range;
+            item.certainty = (int) ((float) certainty * 100) ;
 
             m_distancesMessage.ranges.push_back(item);
         }
@@ -201,8 +209,9 @@ void CFootBotWalk::ControlStep() {
     cMessage << (UInt8) 'A';          // ID of sender ('A' is the broadcast ID)
     cMessage << (UInt8) GetId()[2];   // ID of receiver
 
-    for (uint16_t j = 0; j < m_nRobots; ++j) { // 32 bit = 4 bytes => requires 10 * 4 = 40 bytes of data for 10 robots
+    for (uint16_t j = 0; j < m_nRobots; ++j) { // 32 bit = 4 bytes => requires 10 * (4 * 2) = 80 bytes of data for 10 robots
         cMessage << (float) m_distanceTable[j].first;
+        cMessage << (float) m_distanceTable[j].second;
     }
 
     // Fill to the size of communication allowed (bytes)

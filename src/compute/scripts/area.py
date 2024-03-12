@@ -39,7 +39,8 @@ clock = pygame.time.Clock()
 
 # Distance Measurements
 distance_matrix = None
-distance_table = None
+certainty_matrix = None
+
 modified = False
 
 # Uncertainty on agents
@@ -115,6 +116,7 @@ def update_plot(distances, embedding, uncertainty):
     plt.scatter(embedding[1, 0], embedding[1, 1], c='g')
     plt.scatter(embedding[2, 0], embedding[2, 1], c='y')
 
+    # Make the triangle matrix symmetric to simplify data access
     distances = distances + distances.T
 
     for i, agent in enumerate(embedding):
@@ -130,17 +132,9 @@ def update_plot(distances, embedding, uncertainty):
                 agent,
                 distances[0, i],
                 color='b', fill=False,
-                linewidth=10, alpha=0.1
+                linewidth=10+uncertainty[i], alpha=0.1
             )
         )
-        # ax.add_patch(
-        #     plt.Circle(
-        #         agent,
-        #         distances[1, i],
-        #         color='g', fill=False,
-        #         linewidth=10, alpha=0.1
-        #     )
-        # )
 
     # Redraw the canvas
     canvas.draw()
@@ -154,76 +148,76 @@ def update_plot(distances, embedding, uncertainty):
     pygame.display.flip()
 
 
-def callback(data):
-    global distance_matrix, modified, last_update
+def add_distance(robot_idx, data: Distance):
+    """
+    :param robot_idx: the robot that measured the distance
+    :param data: the distance it measured, with the certainty
+    :return: Nothing, only parse to add to the distance_matrix
+    """
+    global distance_matrix, certainty_matrix, modified
 
     if distance_matrix is None or last_update is None:
-        raise ValueError("Distance matrix, distance table and update table should be created at this point")
+        raise ValueError("Distance matrix, certainty matrix and update table should be created at this point")
+
+    other_robot_idx = data.other_robot_id - ord('A')
+
+    x = robot_idx
+    y = other_robot_idx
+    if robot_idx > other_robot_idx:
+        x = other_robot_idx
+        y = robot_idx
+
+    print(data.certainty)
+
+    # Only update if certainty is greater than the one of the previous measurement
+    if certainty_matrix[x, y] < data.certainty:
+        distance_matrix[x, y] = data.distance
+        certainty_matrix[x, y] = data.certainty
+
+        modified = True
+
+
+def callback(data, args):
+    global last_update
+
+    if last_update is None:
+        raise ValueError("Update table should be created at this point")
 
     # TODO: create uncertainty system, uncertainty increase on measurements received a long time ago,
     #       but also, when updated, choose the measurement with the least uncertainty
 
-    robot_idx = data.robot_id - ord('A')  # starts at B because A (all) is the broadcast address
-    last_update[robot_idx] = 0
+    if isinstance(data, Distance):
+        self_idx = args[0] - ord('A')
+        last_update[self_idx] = 0  # TODO: not sure that it should be updated this way
 
-    for robot in data.ranges:
-        other_robot_idx = robot.other_robot_id - ord('A')
-        distance = robot.distance
-        # certainty = robot.certainty
+        add_distance(self_idx, data)
+    elif isinstance(data, Distances):
+        robot_idx = data.robot_id - ord('A')  # FIXME: Should start from 'B' since 'A' is the broadcast address
+        last_update[robot_idx] = 0
 
-        x = robot_idx
-        y = other_robot_idx
-        if robot_idx > other_robot_idx:
-            x = other_robot_idx
-            y = robot_idx
-
-        distance_matrix[x, y] = distance
-
-    modified = True
-
-
-def self_callback(data, args):
-    global distance_matrix, distance_table
-
-    if distance_matrix is None or distance_table is None or last_update is None:
-        raise ValueError("Distance matrix, distance table and update table should be created at this point")
-
-    self_idx = args[0] - ord('A')
-    last_update[self_idx] = 0
-
-    robot_idx = data.other_robot_id - ord('A')
-    distance = data.distance
-    # certainty = data.certainty
-
-    distance_table[robot_idx] = distance
-
-    x = self_idx
-    y = robot_idx
-    if self_idx > robot_idx:
-        x = robot_idx
-        y = self_idx
-
-    distance_matrix[x, y] = distance
+        for robot in data.ranges:
+            add_distance(robot_idx, robot)
 
 
 def create_matrix(n: int):
-    global distance_matrix, distance_table, last_update, starting_uncertainty
+    global distance_matrix, certainty_matrix, last_update
 
     # Create distance matrix (upper triangle cells are ones)
     mask = np.triu_indices(n, k=1)
-    matrix = np.zeros((n, n))
+    first_matrix = np.zeros((n, n))
+    second_matrix = np.zeros((n, n))
 
-    matrix[mask] = 1
-    distance_matrix = matrix
+    first_matrix[mask] = 1
+    distance_matrix = first_matrix
 
-    # Create distance table
-    distance_table = np.ones((n,))
+    second_matrix[mask] = 1
+    certainty_matrix = second_matrix
 
     # Create last update
     last_update = np.zeros((n,))
 
-    if distance_matrix is None or distance_table is None:
-        raise ValueError("Couldn't create distance matrix and/or distance table")
+    if distance_matrix is None or certainty_matrix is None:
+        raise ValueError("Couldn't create distance matrix and/or certainty matrix")
 
 
 def compute_uncertainty(update, speed, error):
@@ -231,17 +225,15 @@ def compute_uncertainty(update, speed, error):
 
 
 def listener():
-    global distance_matrix, distance_table, modified, last_update
-
-    ros_launch_param = sys.argv[1]
-
-    print(sys.argv)
+    global distance_matrix, certainty_matrix, modified, last_update
 
     # Parse arguments
-    self_id = ord(sys.argv[1][2])
+    ros_launch_param = sys.argv[1]
+
+    # Parse arguments
+    self_id = ord(ros_launch_param[2])
     n_robots = int(sys.argv[2])
 
-    print(sys.argv[3])
     if sys.argv[3] != "Z":
         beacons = [ord(beacon) - ord("A") for beacon in sys.argv[3].split(",")]
     else:
@@ -249,20 +241,20 @@ def listener():
 
     create_matrix(n_robots)
 
-    if distance_matrix is None or distance_table is None:
-        raise ValueError("Distance table should exist at this point, ensure that you called create_matrix() beforehand")
+    if distance_matrix is None or certainty_matrix is None:
+        raise ValueError("Distance matrix should exist at this point, ensure that you called create_matrix() beforehand")
 
     rospy.init_node('listener', anonymous=True)
 
-    rospy.Subscriber(f'/{ros_launch_param}/distances', Distances, callback)
-    rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, self_callback, (self_id,))
+    rospy.Subscriber(f'/{ros_launch_param}/distances', Distances, callback, (self_id,))
+    rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, callback, (self_id,))
 
     data = []
 
     uncertainty = compute_uncertainty(last_update, 3, 10)
 
     # Save previous values
-    previous_estimation = None  # Positions used to rotate the plot (avoid flickering)
+    previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
     position_estimation = compute_positions(distance_matrix, previous_estimation, beacons=beacons)  # Current estimation of the positions
 
     # Positions used for direction estimation
@@ -293,9 +285,12 @@ def listener():
 
             previous_estimation = np.copy(position_estimation)
 
-            # Tick the update clock
+            # Tick for uncertainty increase
             last_update = last_update + 1
-            clock.tick(1)  # Limit to 30 frames per second
+            certainty_matrix = certainty_matrix * 0.99
+
+            # Tick the update clock
+            clock.tick(0.5)  # Limit to 30 frames per second
 
         pickle.dump(data, f)
 
