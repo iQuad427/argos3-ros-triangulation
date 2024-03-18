@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from morpho_msgs.msg import Direction, Angle
 from tri_msgs.msg import Distances, Distance
 from utils import find_rotation_matrix
-from direction import generate_morph_msg
+from direction import generate_morph_msg, find_direction_vector_from_position_history, range_and_bearing
 
 from sklearn.manifold import MDS
 import matplotlib
@@ -36,6 +36,8 @@ window = pygame.display.set_mode((600, 600), DOUBLEBUF)
 screen = pygame.display.get_surface()
 
 clock = pygame.time.Clock()
+
+iteration_rate = 1
 
 # Distance Measurements
 distance_matrix = None
@@ -88,7 +90,7 @@ def compute_positions(distances, ref_plot, beacons=None):
         return embedding
 
 
-def update_plot(distances, embedding, measurement_uncertainty, time_uncertainty):
+def update_plot(agent, distances, embedding, historic, measurement_uncertainty, time_uncertainty):
     if distances is None:
         raise ValueError("Distance matrix should be defined at this point")
 
@@ -111,30 +113,61 @@ def update_plot(distances, embedding, measurement_uncertainty, time_uncertainty)
     ax.grid(color='grey', linestyle='-', linewidth=0.1)
 
     # Update the scatter plot data
-    plt.scatter(embedding[:, 0], embedding[:, 1], c='r')
-    plt.scatter(embedding[0, 0], embedding[0, 1], c='b')
-    plt.scatter(embedding[1, 0], embedding[1, 1], c='g')
-    plt.scatter(embedding[2, 0], embedding[2, 1], c='y')
+    plt.scatter(embedding[:, 0], embedding[:, 1], c='red')
+    plt.scatter(embedding[agent, 0], embedding[agent, 1], c='blue')
 
     # Make the triangle matrix symmetric to simplify data access
     distances = distances + distances.T
 
-    for i, agent in enumerate(embedding):
+    for i, point in enumerate(reversed(historic)):
         ax.add_patch(
             plt.Circle(
-                agent,
-                time_uncertainty[i],
+                point,
+                time_uncertainty,
+                color='r',
+                fill=False,
+                alpha=0.5 / (i + 1),
+            )
+        )
+
+    for i, position in enumerate(embedding):
+        ax.add_patch(
+            plt.Circle(
+                position,
+                time_uncertainty,
                 color='r', fill=False
             )
         )
         ax.add_patch(
             plt.Circle(
-                agent,
+                position,
                 distances[0, i],
                 color='b', fill=False,
                 linewidth=10 / (1 - measurement_uncertainty[i]), alpha=0.1
             )
         )
+
+    if historic:
+        # Plot the direction vector (from agent of interest)
+        direction_vector = find_direction_vector_from_position_history(historic) * 10
+        plt.quiver(
+            *historic[-1], direction_vector[0] * 10, direction_vector[1] * 10,
+            angles='xy', scale_units='xy', scale=1, color='r', label='Direction vector'
+        )
+
+        # Find the range and bearing to the other agents
+        _range_and_bearing = range_and_bearing(agent, historic, np.array(embedding))
+
+        # Compute the angle between the direction vector and the x-axis
+        angle = np.arctan2(direction_vector[1], direction_vector[0])
+
+        # Plot the range and bearing relative to the agent of interest direction
+        for i, (r, b) in enumerate(_range_and_bearing):
+            plt.quiver(
+                *historic[-1], r * np.cos(b + angle), r * np.sin(b + angle),
+                angles='xy', scale_units='xy', scale=1, color='g', alpha=0.5,
+                label=f'Agent {i + 1}'
+            )
 
     # Redraw the canvas
     canvas.draw()
@@ -224,18 +257,15 @@ def compute_measurement_uncertainty(certainty):
     # Compute mean certainty for each agent distances (each row or column)
     certainty = np.mean(matrix, axis=0)
 
-    print(certainty)
-    print(-certainty)
-
     return (-certainty + 100) / 100  # (uncertainty factor)
 
 
-def compute_time_uncertainty(update, speed, error):
-    return update * speed + error
+def compute_time_uncertainty(time, speed, error):
+    return time * speed + error
 
 
 def listener():
-    global distance_matrix, certainty_matrix, modified, last_update
+    global distance_matrix, certainty_matrix, modified, last_update, iteration_rate
 
     # Parse arguments
     ros_launch_param = sys.argv[1]
@@ -260,6 +290,7 @@ def listener():
     rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, callback, (self_id,))
 
     data = []
+    historic = []
 
     uncertainty = compute_measurement_uncertainty(certainty_matrix)
 
@@ -279,12 +310,9 @@ def listener():
 
             # Direction estimation
             measurement_uncertainty = compute_measurement_uncertainty(certainty_matrix)
-            time_uncertainty = compute_time_uncertainty(last_update, 3, 10)
+            time_uncertainty = compute_time_uncertainty(iteration_rate, 15, 10)
 
-            print(measurement_uncertainty)
-            print(time_uncertainty)
-
-            update_plot(distance_matrix, previous_estimation, measurement_uncertainty, time_uncertainty)
+            update_plot(self_id - ord('A'), distance_matrix, previous_estimation, historic, measurement_uncertainty, time_uncertainty)
 
             if modified:  # Only render and send message if data has changed
                 # TODO: modification should only take place after noise mitigation processes.
@@ -292,7 +320,13 @@ def listener():
 
                 # Update the data in the plot
                 position_estimation = compute_positions(distance_matrix, previous_estimation, beacons=beacons)
+                historic.append(list(position_estimation[self_id - ord('A')]))
+                historic = historic[-20:]
+
                 modified = False
+
+                # Compute direction of agent
+                # msg = compute_direction
 
             # Save the data for later stats
             if position_estimation is not None:
@@ -305,9 +339,14 @@ def listener():
             certainty_matrix = certainty_matrix * 0.99
 
             # Tick the update clock
-            clock.tick(0.5)  # Limit to 30 frames per second
+            clock.tick(10)  # Limit to 30 frames per second
 
         pickle.dump(data, f)
+
+
+def compute_direction():
+    msg = Angle()
+    return msg
 
 
 if __name__ == '__main__':
