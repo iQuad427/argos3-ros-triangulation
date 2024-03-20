@@ -43,6 +43,7 @@
 #include "ros/ros.h"
 #include <morpho_msgs/Direction.h>
 #include <morpho_msgs/Angle.h>
+#include <morpho_msgs/RangeAndBearing.h>
 #include <tri_msgs/Distance.h>
 #include <tri_msgs/Distances.h>
 
@@ -120,7 +121,7 @@ public:
 
     /* ROS related methods */
     virtual void InitROS();
-    static void CallbackROS(const morpho_msgs::Angle::ConstPtr& msg);
+    static void CallbackROS(const morpho_msgs::RangeAndBearing::ConstPtr& msg);
     virtual void ControlStepROS();
 
 private:
@@ -148,9 +149,10 @@ private:
     tri_msgs::Distances m_distancesMessage;
     morpho_msgs::Angle m_directionMessage;
 
-    static float m_distance;
-    static float m_angle;
-    static bool m_direction;
+//    static float m_distance;
+//    static float m_angle;
+//    static bool m_direction;
+    static bool m_go;
 
     float m_previousAngle;
     float m_previousDirection;

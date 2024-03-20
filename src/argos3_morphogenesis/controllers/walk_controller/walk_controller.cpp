@@ -8,9 +8,10 @@
 /****************************************/
 /****************************************/
 
-float CFootBotWalk::m_distance;
-float CFootBotWalk::m_angle;
-bool CFootBotWalk::m_direction;
+//float CFootBotWalk::m_distance;
+//float CFootBotWalk::m_angle;
+//bool CFootBotWalk::m_direction;
+bool CFootBotWalk::m_go;
 
 CFootBotWalk::CFootBotWalk() :
         m_pcWheels(nullptr),
@@ -52,7 +53,7 @@ void CFootBotWalk::InitROS() {
 
     publisherName << name.str() << "/distances";
     selfPublisherName << name.str() << "/distance";
-    subscriberName << name.str() << "/direction";
+    subscriberName << name.str() << "/range_and_bearing";
 
     // Register the publisher to the ROS master
     m_distancePublisher = self_pub_node.advertise<tri_msgs::Distance>(selfPublisherName.str(), 10);
@@ -60,10 +61,11 @@ void CFootBotWalk::InitROS() {
     m_directionSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
 }
 
-void CFootBotWalk::CallbackROS(const morpho_msgs::Angle::ConstPtr& msg) {
-    m_distance = msg->distance;
-    m_angle = msg->angle;
-    m_direction = msg->direction;
+void CFootBotWalk::CallbackROS(const morpho_msgs::RangeAndBearing::ConstPtr& msg) {
+    m_go = msg->go;
+//    m_distance = msg->distance;
+//    m_angle = msg->angle;
+//    m_direction = msg->direction;
 }
 
 void CFootBotWalk::ControlStepROS() {
@@ -114,6 +116,9 @@ void CFootBotWalk::Init(TConfigurationNode &t_node) {
     m_invert = false;
     m_counter = 0;
 
+    // ROS Messages
+    m_go = false;
+
     // Fill the distance table with ones
     m_distanceTable.resize(m_nRobots, DistanceFactorPair(0, 1));
 
@@ -131,6 +136,9 @@ void CFootBotWalk::Reset() {
     m_state = MOVE;
     m_invert = false;
     m_counter = 0;
+
+    // ROS Messages
+    m_go = false;
 }
 
 /****************************************/
@@ -222,33 +230,34 @@ void CFootBotWalk::ControlStep() {
 
     /** Obstacle Avoidance Vector Computation */
 
-    /* Random Movement */
-    /* Get readings from proximity sensor */
-    const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
-    /* Sum them together */
-    CVector2 cAccumulator;
-    for (auto tProxRead: tProxReads) {
-        cAccumulator += CVector2(tProxRead.Value, tProxRead.Angle);
-    }
-    cAccumulator /= tProxReads.size();
-    /* If the angle of the vector is small enough and the closest obstacle
-     * is far enough, continue going straight, otherwise curve a little
-     */
-    CRadians cAngle = cAccumulator.Angle();
-    if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
-        cAccumulator.Length() < m_fDelta) {
+    if (m_go) {
+        /* Random Movement */
+        /* Get readings from proximity sensor */
+        const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
+        /* Sum them together */
+        CVector2 cAccumulator;
+        for (auto tProxRead: tProxReads) {
+            cAccumulator += CVector2(tProxRead.Value, tProxRead.Angle);
+        }
+        cAccumulator /= tProxReads.size();
+        /* If the angle of the vector is small enough and the closest obstacle
+         * is far enough, continue going straight, otherwise curve a little
+         */
+        CRadians cAngle = cAccumulator.Angle();
+        if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
+            cAccumulator.Length() < m_fDelta) {
 
-        m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
+            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
 
-    } else {
-        /* Turn, depending on the sign of the angle */
-        if (cAngle.GetValue() > 0.0f) {
-            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
         } else {
-            m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
+            /* Turn, depending on the sign of the angle */
+            if (cAngle.GetValue() > 0.0f) {
+                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
+            } else {
+                m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
+            }
         }
     }
-
 
     ControlStepROS();
 }

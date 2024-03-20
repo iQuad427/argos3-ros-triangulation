@@ -15,7 +15,7 @@
     <!-- * Controllers * -->
     <!-- *************** -->
     <controllers>
-        <base_controller id="fdc" library="devel/lib/libbase_controller">
+        <walk_controller id="fdc" library="devel/lib/libwalk_controller">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -32,9 +32,9 @@
                                    packet_drop_prob="0.92"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="20" />
-        </base_controller>
-        <base_controller id="fdc2" library="devel/lib/libbase_controller">
+            <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="20" />
+        </walk_controller>
+        <base_controller id="fdc2" library="devel/lib/libwalk_controller">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -83,7 +83,7 @@
 
         <foot-bot id="fbA" rab_range="10" rab_data_size="1000" >
             <body orientation="0,0,0" position="1.8,0.0,0" />
-            <controller config="fdc2" />
+            <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbB" rab_range="10" rab_data_size="1000" >
             <body orientation="0,0,0" position="1.7119017293312764,0.5562305898749054,0" />

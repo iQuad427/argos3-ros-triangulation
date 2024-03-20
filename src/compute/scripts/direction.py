@@ -74,8 +74,6 @@ def compute_direction(previous_plot, current_plot):
     #       as a difference of the matrices to estimate the gradient and angle of the movement of the agent.
 
     if previous_plot is not None and current_plot is not None:
-        # print(previous_plot)
-        # print(current_plot)
         # Compute the centroid of the current and previous MDS coordinates
         centroid_previous = np.mean(previous_plot, axis=0)
         centroid_current = np.mean(current_plot, axis=0)

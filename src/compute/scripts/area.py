@@ -7,10 +7,11 @@ import numpy as np
 import rospy
 import matplotlib.pyplot as plt
 
-from morpho_msgs.msg import Direction, Angle
+from morpho_msgs.msg import Direction, Angle, RangeAndBearing
 from tri_msgs.msg import Distances, Distance
+
 from utils import find_rotation_matrix
-from direction import generate_morph_msg, find_direction_vector_from_position_history, range_and_bearing
+from direction import find_direction_vector_from_position_history, range_and_bearing
 
 from sklearn.manifold import MDS
 import matplotlib
@@ -257,7 +258,7 @@ def compute_measurement_uncertainty(certainty):
     # Compute mean certainty for each agent distances (each row or column)
     certainty = np.mean(matrix, axis=0)
 
-    return (-certainty + 100) / 100  # (uncertainty factor)
+    return (100 - certainty) / 100  # (uncertainty factor)
 
 
 def compute_time_uncertainty(time, speed, error):
@@ -288,18 +289,22 @@ def listener():
 
     rospy.Subscriber(f'/{ros_launch_param}/distances', Distances, callback, (self_id,))
     rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, callback, (self_id,))
+    pub = rospy.Publisher(f'/{ros_launch_param}/range_and_bearing', RangeAndBearing, queue_size=10)
 
     data = []
     historic = []
 
-    uncertainty = compute_measurement_uncertainty(certainty_matrix)
-
     # Save previous values
     previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
-    position_estimation = compute_positions(distance_matrix, previous_estimation, beacons=beacons)  # Current estimation of the positions
+    previous_estimation = compute_positions(
+        distance_matrix,
+        previous_estimation,
+        beacons=beacons
+    )  # Current estimation of the positions
+    position_estimation = np.copy(previous_estimation)
 
-    # Positions used for direction estimation
-    current_plot = None  # Idea: might want to update less often to have more distance measurements updates
+    plot_converged = False
+    count = 0
 
     with open("output/output.txt", "wb") as f:
         crashed = False
@@ -315,18 +320,25 @@ def listener():
             update_plot(self_id - ord('A'), distance_matrix, previous_estimation, historic, measurement_uncertainty, time_uncertainty)
 
             if modified:  # Only render and send message if data has changed
-                # TODO: modification should only take place after noise mitigation processes.
-                #       Here, it only indicates that new data was received from another agent.
-
                 # Update the data in the plot
                 position_estimation = compute_positions(distance_matrix, previous_estimation, beacons=beacons)
+
+                # If new plot is close to the previous one, consider convergence
+                if count > 10:
+                    plot_converged = True
+                else:
+                    count += 1
+
                 historic.append(list(position_estimation[self_id - ord('A')]))
                 historic = historic[-20:]
 
                 modified = False
 
-                # Compute direction of agent
-                # msg = compute_direction
+                # If the plot has converged, start sending information to agent (start mission)
+                if plot_converged:
+                    # Compute direction of agent
+                    msg = compute_direction()
+                    pub.publish(msg)
 
             # Save the data for later stats
             if position_estimation is not None:
@@ -345,7 +357,8 @@ def listener():
 
 
 def compute_direction():
-    msg = Angle()
+    msg = RangeAndBearing()
+    msg.go = True
     return msg
 
 

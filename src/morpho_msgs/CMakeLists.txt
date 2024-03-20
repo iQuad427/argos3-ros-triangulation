@@ -8,6 +8,7 @@ add_message_files(
         FILES
         Direction.msg
         Angle.msg
+        RangeAndBearing.msg
 )
 
 generate_messages(DEPENDENCIES std_msgs)

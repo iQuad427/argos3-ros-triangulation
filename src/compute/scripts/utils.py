@@ -4,8 +4,6 @@ import numpy as np
 from numpy.linalg import svd
 from sklearn.manifold import MDS
 
-from morpho_msgs.msg import Direction
-
 
 def MDS_fitting(matrix):
     mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True)
@@ -44,3 +42,21 @@ def find_rotation_matrix(X, Y):
 
     return R
 
+
+def rotate_and_translate(reference, points):
+    rotation = find_rotation_matrix(reference.T, points.T)
+
+    # Apply the rotation
+    points_rotated = points @ rotation
+
+    # First, find the centroid of the original points
+    centroid = np.mean(reference, axis=0)
+
+    # Then, find the centroid of the MDS points
+    points_centroid = np.mean(points_rotated, axis=0)
+
+    # Find the translation vector
+    translation = centroid - points_centroid
+
+    # Translate the MDS points
+    return points_rotated + translation

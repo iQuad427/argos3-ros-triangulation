@@ -85,22 +85,21 @@
             <body orientation="0,0,0" position="0,0,0" />
             <controller config="fdc" />
         </foot-bot>
-
-        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.8,1.8,0" />
-            <controller config="fdc2" />
-        </foot-bot>
         <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="-1.8,1.8,0" />
-            <controller config="fdc2" />
+            <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="-1.8,-1.8,0" />
-            <controller config="fdc2" />
+            <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="1.8,-1.8,0" />
-            <controller config="fdc2" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >
+            <body orientation="0,0,0" position="1.8,1.8,0" />
+            <controller config="fdc" />
         </foot-bot>
     </arena>
 
