@@ -1,0 +1,120 @@
+<?xml version="1.0" ?>
+<argos-configuration>
+
+    <!-- ************************* -->
+    <!-- * General configuration * -->
+    <!-- ************************* -->
+    <framework>
+        <system threads="0" />
+        <experiment length="0"
+                    ticks_per_second="10"
+                    random_seed="124" />
+    </framework>
+
+    <!-- *************** -->
+    <!-- * Controllers * -->
+    <!-- *************** -->
+    <controllers>
+        <nothing_controller id="fdc" library="devel/lib/libnothing_controller">
+            <actuators>
+                <rvr_wheels implementation="default"/>
+<!--                <rvr_rgb_leds implementation="default" medium="leds"/>-->
+            </actuators>
+            <sensors>
+                <rvr_proximity implementation="default" range="0.4" show_rays="false"/>
+<!--                <rvr_light implementation="default" show_rays="false"/>-->
+                <rvr_lidar implementation="default" show_rays="false"/>
+<!--                <rvr_ground implementation="rot_z_only"/>-->
+<!--                <colored_blob_omnidirectional_camera implementation="rot_z_only" medium="leds" show_rays="false" />-->
+            </sensors>
+            <params fsm-config="--nstates 2 --s0 0 --rwm0 20 --n0 1 --n0x0 0 --c0x0 0 --p0x0 0.5 --s1 1" real-robot="false" velocity="30"/>
+        </nothing_controller>
+    </controllers>
+
+    <!-- ****************** -->
+    <!-- * Loop functions * -->
+    <!-- ****************** -->
+    <loop_functions library="devel/lib/libstatistics_loop_functions"
+                    label="statistics_loop_functions"
+                    num_robots="5" />
+
+<!--    <loop_functions library="/home/quentin/Dev/rvr-loop-functions/build/loop-functions/rvr-pow/grid-exploration/librvr_pow_grid_exploration_loopfunc.so"-->
+<!--                    label="grid_exploration_loop_functions">-->
+<!--        <params dist_radius="1.2" number_robots="5"/>-->
+<!--    </loop_functions>-->
+
+
+    <!-- *********************** -->
+    <!-- * Arena configuration * -->
+    <!-- *********************** -->
+    <arena size="5, 5, 1" center="0,0,0.5">
+
+        <box id="wall_north" size="4,0.1,0.5" movable="false">
+            <body position="0,2,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_south" size="4,0.1,0.5" movable="false">
+            <body position="0,-2,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_east" size="0.1,4,0.5" movable="false">
+            <body position="2,0,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_west" size="0.1,4,0.5" movable="false">
+            <body position="-2,0,0" orientation="0,0,0" />
+        </box>
+
+        <rvr id="rvr_01_30">
+            <body orientation="0,0,0" position="0,-0.4,0" />
+            <controller config="fdc" />
+        </rvr>
+
+<!--        <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >-->
+<!--            <body orientation="0,0,0" position="1.8,1.8,0" />-->
+<!--            <controller config="fdc" />-->
+<!--        </foot-bot>-->
+<!--        <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >-->
+<!--            <body orientation="0,0,0" position="-1.8,-1.8,0" />-->
+<!--            <controller config="fdc" />-->
+<!--        </foot-bot>-->
+<!--        <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >-->
+<!--            <body orientation="0,0,0" position="1.8,-1.8,0" />-->
+<!--            <controller config="fdc" />-->
+<!--        </foot-bot>-->
+<!--        <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >-->
+<!--            <body orientation="0,0,0" position="-1.8,1.8,0" />-->
+<!--            <controller config="fdc" />-->
+<!--        </foot-bot>-->
+
+<!--        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >-->
+<!--            <body orientation="0,0,0" position="0,0,0" />-->
+<!--            <controller config="fdc2" />-->
+<!--        </foot-bot>-->
+    </arena>
+
+    <!-- ******************* -->
+    <!-- * Physics engines * -->
+    <!-- ******************* -->
+    <physics_engines>
+        <dynamics2d id="dyn2d" />
+    </physics_engines>
+
+    <!-- ********* -->
+    <!-- * Media * -->
+    <!-- ********* -->
+    <media>
+        <range_and_bearing id="rab" check_occlusions="true" />
+    </media>
+
+    <!-- ****************** -->
+    <!-- * Visualization * -->
+    <!-- ****************** -->
+    <visualization>
+        <qt-opengl>
+            <camera>
+                <placements>
+                    <placement index="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />
+                </placements>
+            </camera>
+        </qt-opengl>
+    </visualization>
+
+</argos-configuration>
