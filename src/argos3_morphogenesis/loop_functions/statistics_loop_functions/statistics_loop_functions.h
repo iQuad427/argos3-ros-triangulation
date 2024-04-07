@@ -14,6 +14,7 @@
 #include <tri_msgs/Item.h>
 #include <tri_msgs/Matrix.h>
 #include <tri_msgs/Agent.h>
+#include <tri_msgs/Odometry.h>
 
 using namespace argos;
 
@@ -59,6 +60,8 @@ private:
     int m_nRobots;
 
     /* ROS Publisher */
+    ros::Publisher m_positionPublisher;
+
     ros::Publisher m_matrixPublisher;
     tri_msgs::Agent m_matrixMessage;
 

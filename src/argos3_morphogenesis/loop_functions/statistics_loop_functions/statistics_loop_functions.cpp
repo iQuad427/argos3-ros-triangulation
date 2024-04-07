@@ -38,15 +38,18 @@ void CStatisticsLoopFunctions::InitROS() {
     //ROS access node
     ros::NodeHandle node;
 
-    std::stringstream publisherName;
+    std::stringstream distancePublisherName;
+    std::stringstream positionPublisherName;
 
-    publisherName << name.str() << "/distance_matrix";
+    distancePublisherName << name.str() << "/distance_matrix";
+    positionPublisherName << name.str() << "/positions";
 
     // Register the publisher to the ROS master
-    m_matrixPublisher = node.advertise<tri_msgs::Agent>(publisherName.str(), 10);
+    m_matrixPublisher = node.advertise<tri_msgs::Agent>(distancePublisherName.str(), 10);
+    m_positionPublisher = node.advertise<tri_msgs::Odometry>(positionPublisherName.str(), 10);
 
     // Prefill Messages
-    m_matrixMessage.header.frame_id = publisherName.str();
+    m_matrixMessage.header.frame_id = distancePublisherName.str();
     m_matrixMessage.agent_id = (uint8_t) 0;
 
     for (int i = 0; i < m_nRobots; ++i) {
@@ -92,6 +95,29 @@ void CStatisticsLoopFunctions::ControlStepROS() {
 
         m_matrixPublisher.publish(m_matrixMessage);
 
+        /* Get the map of all foot-bots from the space */
+        CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
+        /* Go through them */
+        for (CSpace::TMapPerType::iterator it = tFBMap.begin(); it != tFBMap.end(); ++it) {
+            tri_msgs::Odometry odometry;
+
+            /* Create a pointer to the current foot-bot */
+            CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
+            CVector3 position = pcFB->GetEmbodiedEntity().GetOriginAnchor().Position;
+            CQuaternion orientation = pcFB->GetEmbodiedEntity().GetOriginAnchor().Orientation;
+
+            odometry.x = position[0];
+            odometry.y = position[1];
+            odometry.z = position[2];
+
+            odometry.a = orientation.GetX();
+            odometry.b = orientation.GetY();
+            odometry.c = orientation.GetZ();
+            odometry.d = orientation.GetW();
+
+            m_positionPublisher.publish(odometry);
+        }
+
         //update ROS status
         ros::spinOnce();
     }
@@ -120,17 +146,6 @@ void CStatisticsLoopFunctions::Reset() {
     /* Clear distance matrix */
     for (int i = 0; i < m_nRobots; ++i) {
         m_distanceMatrix[i].clear();
-    }
-
-    /* Get the map of all foot-bots from the space */
-    CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
-    /* Go through them */
-    for (CSpace::TMapPerType::iterator it = tFBMap.begin();
-         it != tFBMap.end();
-         ++it) {
-        /* Create a pointer to the current foot-bot */
-        // CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
-        // Get Position : pcFB->GetEmbodiedEntity().GetOriginAnchor().Position
     }
 }
 

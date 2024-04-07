@@ -50,17 +50,23 @@ modified = False
 last_update = None
 
 
-def compute_positions(distances, ref_plot, beacons=None):
+def compute_positions(distances, certainties, ref_plot, beacons=None):
     if distances is not None:
         matrix = distances
 
         # Update the data in the plot
         # Make sure the matrix is symmetric
         matrix = (matrix + matrix.T)  # removed '/2' because triangular matrix
+        matrix_certainty = (certainties + certainties.T)
+
+        print(matrix_certainty)
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
         mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
-        embedding = mds.fit_transform(matrix)
+        if ref_plot is None:
+            embedding = mds.fit_transform(matrix, weight=matrix_certainty)
+        else:
+            embedding = mds.fit_transform(matrix, weight=matrix_certainty, init=ref_plot)
 
         # Rotate dots to match previous plot
         if ref_plot is not None:
@@ -298,6 +304,7 @@ def listener():
     previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
     previous_estimation = compute_positions(
         distance_matrix,
+        certainty_matrix,
         previous_estimation,
         beacons=beacons
     )  # Current estimation of the positions
@@ -321,7 +328,7 @@ def listener():
 
             if modified:  # Only render and send message if data has changed
                 # Update the data in the plot
-                position_estimation = compute_positions(distance_matrix, previous_estimation, beacons=beacons)
+                position_estimation = compute_positions(distance_matrix, certainty_matrix, previous_estimation, beacons=beacons)
 
                 # If new plot is close to the previous one, consider convergence
                 if count > 10:
@@ -354,7 +361,7 @@ def listener():
             certainty_matrix = certainty_matrix * 0.99
 
             # Tick the update clock
-            clock.tick(15)  # Limit to 30 frames per second
+            clock.tick(5)  # Limit to 30 frames per second
 
         pickle.dump(data, f)
 
