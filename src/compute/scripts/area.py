@@ -329,14 +329,17 @@ def listener():
                 else:
                     count += 1
 
+                print(count)
+
                 historic.append(list(position_estimation[self_id - ord('A')]))
-                historic = historic[-20:]
+                historic = historic[-5:]
 
                 modified = False
 
                 # If the plot has converged, start sending information to agent (start mission)
                 if plot_converged:
                     # Compute direction of agent
+                    print("go")
                     msg = compute_direction()
                     pub.publish(msg)
 
@@ -351,7 +354,7 @@ def listener():
             certainty_matrix = certainty_matrix * 0.99
 
             # Tick the update clock
-            clock.tick(10)  # Limit to 30 frames per second
+            clock.tick(15)  # Limit to 30 frames per second
 
         pickle.dump(data, f)
 

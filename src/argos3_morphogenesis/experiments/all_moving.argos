@@ -32,26 +32,7 @@
                                    packet_drop_prob="0.90"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="5" />
-        </walk_controller>
-        <walk_controller id="fdc2" library="devel/lib/libwalk_controller">
-            <actuators>
-                <!-- Differential steering actuators -->
-                <differential_steering implementation="default" />
-                <!-- Range and Bearing actuators -->
-                <range_and_bearing implementation="default" />
-            </actuators>
-            <sensors>
-                <!-- Proximity sensors -->
-                <footbot_proximity implementation="default" show_rays="true" />
-                <!-- Range and Bearing sensors -->
-                <range_and_bearing implementation="medium"
-                                   medium="rab"
-                                   noise_std_dev="0.1"
-                                   packet_drop_prob="0.90"
-                                   show_rays="true" />
-            </sensors>
-            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="5" />
+            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="4" />
         </walk_controller>
     </controllers>
 
@@ -82,25 +63,20 @@
         </box>
 
         <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.8,1.8,0" />
+            <body orientation="0,0,0" position="-1.8,1.8,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
             <body orientation="0,0,0" position="-1.8,-1.8,0" />
             <controller config="fdc" />
         </foot-bot>
-
         <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1,1,0" />
-            <controller config="fdc2" />
+            <body orientation="0,0,0" position="1.8,-1.8,0" />
+            <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1,0,0" />
-            <controller config="fdc2" />
-        </foot-bot>
-        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1,-1,0" />
-            <controller config="fdc2" />
+            <body orientation="0,0,0" position="1.8,1.8,0" />
+            <controller config="fdc" />
         </foot-bot>
     </arena>
 

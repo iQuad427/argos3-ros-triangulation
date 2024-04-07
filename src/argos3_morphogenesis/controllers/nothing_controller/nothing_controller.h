@@ -55,14 +55,6 @@
 #define AVOID 4
 #define PI 3.14159265
 
-// Define a type for the pair of floats
-typedef std::pair<float, float> DistanceFactorPair;
-
-typedef std::vector<DistanceFactorPair> DistanceTable;
-
-// Define a type for the distance matrix
-typedef std::vector<std::vector<DistanceFactorPair>> DistanceMatrix;
-
 /*
  * All the ARGoS stuff in the 'argos' namespace.
  * With this statement, you save typing argos:: every time.

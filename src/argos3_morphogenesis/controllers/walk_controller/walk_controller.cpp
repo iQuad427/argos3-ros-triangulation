@@ -111,6 +111,8 @@ void CFootBotWalk::Init(TConfigurationNode &t_node) {
 
     GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
 
+    std::cout << m_fWheelVelocity << std::endl;
+
     // State machine
     m_state = MOVE;
     m_invert = false;

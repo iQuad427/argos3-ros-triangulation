@@ -8,7 +8,9 @@
 /****************************************/
 /****************************************/
 
-CFootBotBase::CFootBotBase() {}
+CFootBotBase::CFootBotBase() {
+    std::cout << "Creation" << std::endl;
+}
 
 /****************************************/
 /****************************************/
@@ -16,17 +18,23 @@ CFootBotBase::CFootBotBase() {}
 /****************************************/
 /****************************************/
 
-void CFootBotBase::Init(TConfigurationNode &t_node) {}
+void CFootBotBase::Init(TConfigurationNode &t_node) {
+    std::cout << "Initialize" << std::endl;
+}
 
 /****************************************/
 /****************************************/
 
-void CFootBotBase::Reset() {}
+void CFootBotBase::Reset() {
+    std::cout << "Reset" << std::endl;
+}
 
 /****************************************/
 /****************************************/
 
-void CFootBotBase::ControlStep() {}
+void CFootBotBase::ControlStep() {
+    std::cout << "Control Step" << std::endl;
+}
 
 /****************************************/
 /****************************************/
