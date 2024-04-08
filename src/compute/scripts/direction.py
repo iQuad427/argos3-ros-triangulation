@@ -147,6 +147,7 @@ def find_direction_vector_from_position_history(position_history):
     direction_vector = np.mean(diff, axis=0)
 
     # Normalize the direction vector
+
     direction_vector = direction_vector / np.linalg.norm(direction_vector)
 
     return direction_vector

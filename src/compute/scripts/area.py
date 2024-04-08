@@ -2,13 +2,16 @@
 import math
 import pickle
 import sys
+from collections import defaultdict
+from datetime import datetime
 
 import numpy as np
 import rospy
 import matplotlib.pyplot as plt
 
 from morpho_msgs.msg import Direction, Angle, RangeAndBearing
-from tri_msgs.msg import Distances, Distance
+from sklearn.linear_model import LinearRegression
+from tri_msgs.msg import Distances, Distance, Odometry
 
 from utils import find_rotation_matrix
 from direction import find_direction_vector_from_position_history, range_and_bearing
@@ -19,7 +22,6 @@ import matplotlib.backends.backend_agg as agg
 import pylab
 import pygame
 from pygame.locals import *
-
 
 np.set_printoptions(linewidth=np.inf)
 matplotlib.use("Agg")
@@ -44,6 +46,79 @@ iteration_rate = 1
 distance_matrix = None
 certainty_matrix = None
 
+# dict
+hist_dist = defaultdict(list)
+
+position_history = []
+
+
+def add_position(positions):
+    global position_history
+    position_history.insert(0, (datetime.now().timestamp(), positions))
+    position_history = position_history[:3]
+    return position_history
+
+def correlated_positions(n):
+    global position_history
+
+    if len(position_history) < 2:
+        return position_history[0][1]
+
+    out_positions = []
+
+    for i in range(n):
+        times = np.array([entry[0] for entry in position_history]).reshape(-1, 1)
+        positions = np.array([entry[1][i] for entry in position_history])
+
+        model = LinearRegression()
+        model.fit(times, positions)
+
+        current_time = datetime.now().timestamp()
+        next_time = current_time
+        next_position = model.predict([[next_time]])
+        print(next_position)
+        out_positions.append(next_position[0])
+
+
+    return out_positions
+
+def add_for(x, y, dist_time):
+    global hist_dist
+    # COMMENT: - maxer l'estimation
+    hist_dist[(x, y)] = [dist_time, *hist_dist[(x, y)]][:3]
+    hist_dist[(y, x)] = [dist_time, *hist_dist[(y, x)]][:3]
+
+
+# Function to build the distance matrix using linear regression
+def build_distance_matrix(n, ):
+    global hist_dist
+    distancedequentin = np.zeros(shape=(n, n))
+    for (x, y), distances in hist_dist.items():
+        if len(distances) == 0:  # No data available
+            continue
+
+        # If there's only one data point, use it as the current distance
+        if len(distances) == 1:
+            current_distance = distances[0][0]
+        else:
+            # Extract features (time steps) and target (distances)
+            X = [i[1] for i in distances]
+            X = np.reshape(np.array(X), newshape=(-1, 1))
+            Y = [i[0] for i in distances]
+
+            # Fit linear regression model
+            model = LinearRegression().fit(X, Y)
+
+            # Predict the current value (distance)
+            current_distance = model.predict([[datetime.now().timestamp()]])[0]
+
+        # Update the distance matrix
+        distancedequentin[(x, y)] = current_distance
+        distancedequentin[(y, x)] = current_distance
+
+    return distancedequentin
+
+
 modified = False
 
 # Uncertainty on agents
@@ -51,48 +126,51 @@ last_update = None
 
 
 def compute_positions(distances, certainties, ref_plot, beacons=None):
+    print("YOOHOHOHOH")
     if distances is not None:
         matrix = distances
 
         # Update the data in the plot
         # Make sure the matrix is symmetric
-        matrix = (matrix + matrix.T)  # removed '/2' because triangular matrix
+        matrix = (matrix + matrix.T) / 2  # removed '/2' because triangular matrix
         matrix_certainty = (certainties + certainties.T)
 
-        print(matrix_certainty)
+        print("A", matrix_certainty)
+        print(matrix)
+        print()
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
         mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
-        if ref_plot is None:
+        if ref_plot is None or ref_plot[(0, 0)] == .0:
             embedding = mds.fit_transform(matrix, weight=matrix_certainty)
         else:
             embedding = mds.fit_transform(matrix, weight=matrix_certainty, init=ref_plot)
 
-        # Rotate dots to match previous plot
-        if ref_plot is not None:
-            if beacons is None or len(beacons) < 2:
-                rotation = find_rotation_matrix(ref_plot.T, embedding.T)
-            else:
-                rotation = find_rotation_matrix(ref_plot[beacons].T, embedding[beacons].T)
-
-            # Apply the rotation
-            embedding = embedding @ rotation
-
-            if beacons is None:
-                # First, find the centroid of the original points
-                previous_centroid = np.mean(ref_plot, axis=0)
-                # Then, find the centroid of the MDS points
-                current_centroid = np.mean(embedding, axis=0)
-            else:
-                # TODO: beacons should be the list of IDs of the beacons (therefore, need to modify code)
-                previous_centroid = np.mean(ref_plot[beacons], axis=0)
-                current_centroid = np.mean(embedding[beacons], axis=0)
-
-            # Find the translation vector
-            translation = previous_centroid - current_centroid
-
-            # Translate the MDS points
-            embedding = embedding + translation
+        # # Rotate dots to match previous plot
+        # if ref_plot is not None:
+        #     if beacons is None or len(beacons) < 2:
+        #         rotation = find_rotation_matrix(ref_plot.T, embedding.T)
+        #     else:
+        #         rotation = find_rotation_matrix(ref_plot[beacons].T, embedding[beacons].T)
+        #
+        #     # Apply the rotation
+        #     embedding = embedding @ rotation
+        #
+        #     if beacons is None:
+        #         # First, find the centroid of the original points
+        #         previous_centroid = np.mean(ref_plot, axis=0)
+        #         # Then, find the centroid of the MDS points
+        #         current_centroid = np.mean(embedding, axis=0)
+        #     else:
+        #         # TODO: beacons should be the list of IDs of the beacons (therefore, need to modify code)
+        #         previous_centroid = np.mean(ref_plot[beacons], axis=0)
+        #         current_centroid = np.mean(embedding[beacons], axis=0)
+        #
+        #     # Find the translation vector
+        #     translation = previous_centroid - current_centroid
+        #
+        #     # Translate the MDS points
+        #     embedding = embedding + translation
 
         return embedding
 
@@ -137,22 +215,22 @@ def update_plot(agent, distances, embedding, historic, measurement_uncertainty, 
             )
         )
 
-    for i, position in enumerate(embedding):
-        ax.add_patch(
-            plt.Circle(
-                position,
-                time_uncertainty,
-                color='r', fill=False
-            )
-        )
-        ax.add_patch(
-            plt.Circle(
-                position,
-                distances[0, i],
-                color='b', fill=False,
-                linewidth=10 / (1 - measurement_uncertainty[i]), alpha=0.1
-            )
-        )
+    # for i, position in enumerate(embedding):
+    #     ax.add_patch(
+    #         plt.Circle(
+    #             position,
+    #             time_uncertainty,
+    #             color='r', fill=False
+    #         )
+    #     )
+    #     ax.add_patch(
+    #         plt.Circle(
+    #             position,
+    #             distances[0, i],
+    #             color='b', fill=False,
+    #             linewidth=10 / (1 - measurement_uncertainty[i]), alpha=0.1
+    #         )
+    #     )
 
     if historic:
         # Plot the direction vector (from agent of interest)
@@ -211,6 +289,7 @@ def add_distance(robot_idx, data: Distance):
     if certainty_matrix[x, y] < data.certainty:
         distance_matrix[x, y] = data.distance
         certainty_matrix[x, y] = data.certainty
+        add_for(x, y, (data.distance, datetime.now().timestamp()))
 
         modified = True
 
@@ -289,7 +368,8 @@ def listener():
     create_matrix(n_robots)
 
     if distance_matrix is None or certainty_matrix is None:
-        raise ValueError("Distance matrix should exist at this point, ensure that you called create_matrix() beforehand")
+        raise ValueError(
+            "Distance matrix should exist at this point, ensure that you called create_matrix() beforehand")
 
     rospy.init_node('listener', anonymous=True)
 
@@ -308,6 +388,7 @@ def listener():
         previous_estimation,
         beacons=beacons
     )  # Current estimation of the positions
+
     position_estimation = np.copy(previous_estimation)
 
     plot_converged = False
@@ -323,12 +404,18 @@ def listener():
             # Direction estimation
             measurement_uncertainty = compute_measurement_uncertainty(certainty_matrix)
             time_uncertainty = compute_time_uncertainty(iteration_rate, 15, 10)
+            new_dm = build_distance_matrix(n_robots)
 
-            update_plot(self_id - ord('A'), distance_matrix, previous_estimation, historic, measurement_uncertainty, time_uncertainty)
+            update_plot(self_id - ord('A'), new_dm, previous_estimation, historic, measurement_uncertainty, time_uncertainty)
 
-            if modified:  # Only render and send message if data has changed
+            if True:  # Only render and send message if data has changed
                 # Update the data in the plot
-                position_estimation = compute_positions(distance_matrix, certainty_matrix, previous_estimation, beacons=beacons)
+                position_estimation = compute_positions(new_dm, certainty_matrix, previous_estimation, beacons=beacons)
+
+                add_position(position_estimation)
+                corr_position = correlated_positions(n_robots)
+
+                print(position_estimation)
 
                 # If new plot is close to the previous one, consider convergence
                 if count > 10:
@@ -341,12 +428,9 @@ def listener():
                 historic.append(list(position_estimation[self_id - ord('A')]))
                 historic = historic[-5:]
 
-                modified = False
-
                 # If the plot has converged, start sending information to agent (start mission)
                 if plot_converged:
                     # Compute direction of agent
-                    print("go")
                     msg = compute_direction()
                     pub.publish(msg)
 
@@ -355,13 +439,12 @@ def listener():
                 data.append(position_estimation)
 
             previous_estimation = np.copy(position_estimation)
-
             # Tick for uncertainty increase
             last_update = last_update + 1
             certainty_matrix = certainty_matrix * 0.99
 
             # Tick the update clock
-            clock.tick(5)  # Limit to 30 frames per second
+            clock.tick(20)  # Limit to 30 frames per second
 
         pickle.dump(data, f)
 

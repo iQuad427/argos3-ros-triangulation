@@ -106,6 +106,8 @@ void CStatisticsLoopFunctions::ControlStepROS() {
             CVector3 position = pcFB->GetEmbodiedEntity().GetOriginAnchor().Position;
             CQuaternion orientation = pcFB->GetEmbodiedEntity().GetOriginAnchor().Orientation;
 
+            odometry.header.stamp = ros::Time::now();
+
             odometry.x = position[0];
             odometry.y = position[1];
             odometry.z = position[2];
