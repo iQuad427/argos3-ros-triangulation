@@ -14,7 +14,7 @@ from sklearn.linear_model import LinearRegression
 from tri_msgs.msg import Distances, Distance, Odometry
 
 from utils import find_rotation_matrix
-from direction import find_direction_vector_from_position_history, range_and_bearing
+from direction import find_direction_vector_from_position_history, range_and_bearing, generate_weighted_vector
 
 from sklearn.manifold import MDS
 import matplotlib
@@ -50,6 +50,7 @@ certainty_matrix = None
 hist_dist = defaultdict(list)
 
 position_history = []
+direction_history = []
 
 
 def add_position(positions):
@@ -57,6 +58,14 @@ def add_position(positions):
     position_history.insert(0, (datetime.now().timestamp(), positions))
     position_history = position_history[:3]
     return position_history
+
+
+def add_direction(direction):
+    global direction_history
+    direction_history.insert(0, direction)
+    direction_history = direction_history[:3]
+    return direction_history
+
 
 def correlated_positions(n):
     global position_history
@@ -76,11 +85,11 @@ def correlated_positions(n):
         current_time = datetime.now().timestamp()
         next_time = current_time
         next_position = model.predict([[next_time]])
-        print(next_position)
+
         out_positions.append(next_position[0])
 
-
     return out_positions
+
 
 def add_for(x, y, dist_time):
     global hist_dist
@@ -126,7 +135,6 @@ last_update = None
 
 
 def compute_positions(distances, certainties, ref_plot, beacons=None):
-    print("YOOHOHOHOH")
     if distances is not None:
         matrix = distances
 
@@ -235,13 +243,15 @@ def update_plot(agent, distances, embedding, historic, measurement_uncertainty, 
     if historic:
         # Plot the direction vector (from agent of interest)
         direction_vector = find_direction_vector_from_position_history(historic) * 10
+        direction_vector = generate_weighted_vector(add_direction(direction_vector))
+
         plt.quiver(
             *historic[-1], direction_vector[0] * 10, direction_vector[1] * 10,
             angles='xy', scale_units='xy', scale=1, color='r', label='Direction vector'
         )
 
         # Find the range and bearing to the other agents
-        _range_and_bearing = range_and_bearing(agent, historic, np.array(embedding))
+        _range_and_bearing = range_and_bearing(agent, direction_vector, historic, np.array(embedding))
 
         # Compute the angle between the direction vector and the x-axis
         angle = np.arctan2(direction_vector[1], direction_vector[0])
@@ -444,7 +454,7 @@ def listener():
             certainty_matrix = certainty_matrix * 0.99
 
             # Tick the update clock
-            clock.tick(20)  # Limit to 30 frames per second
+            clock.tick(60)  # Limit to 30 frames per second
 
         pickle.dump(data, f)
 

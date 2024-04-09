@@ -153,11 +153,39 @@ def find_direction_vector_from_position_history(position_history):
     return direction_vector
 
 
-def range_and_bearing(agent, historic, plot):
+def generate_weighted_vector(vectors):
+    """
+    Generate a new vector by giving more weight to the most recent vectors.
+
+    Args:
+    vectors (list of tuples): List of 2D vectors represented as tuples.
+
+    Returns:
+    tuple: The weighted average vector.
+    """
+    # Define weights for each vector
+    weights = [0.9 ** i for i in range(len(vectors))]
+
+    # Calculate weighted sum for x and y components separately
+    weighted_x_sum = sum(weight * vector[0] for weight, vector in zip(weights, vectors))
+    weighted_y_sum = sum(weight * vector[1] for weight, vector in zip(weights, vectors))
+
+    # Calculate total weight
+    total_weight = sum(weights)
+
+    # Calculate weighted average
+    weighted_average_x = weighted_x_sum / total_weight
+    weighted_average_y = weighted_y_sum / total_weight
+
+    return weighted_average_x, weighted_average_y
+
+
+def range_and_bearing(agent, direction, historic, plot):
     """
     Estimate the relative direction of all agents
 
     :param agent: id of the robot currently estimating its range and bearing to other robots of the swarm
+    :param direction: direction vector of the agent
     :param historic: sample of last known position of the robot on the plot
     :param plot: position estimation to take into consideration when computing angles
     :return: the estimated readings of the simulated range and bearing sensor
@@ -167,8 +195,9 @@ def range_and_bearing(agent, historic, plot):
     historic = np.array(historic)
 
     # Rotate the plot to have the agent of interest at the origin and the direction vector aligned with the x-axis
+
     # Compute the direction vector of the movement
-    direction_vector = find_direction_vector_from_position_history(historic)
+    direction_vector = direction
 
     # Compute the angle between the direction vector and the x-axis
     angle = np.arctan2(direction_vector[1], direction_vector[0])
