@@ -28,31 +28,12 @@
                 <!-- Range and Bearing sensors -->
                 <range_and_bearing implementation="medium"
                                    medium="rab"
-                                   noise_std_dev="0"
-                                   packet_drop_prob="0.92"
+                                   noise_std_dev="0.1"
+                                   packet_drop_prob="0.95"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="20" />
+            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="20" />
         </walk_controller>
-        <base_controller id="fdc2" library="devel/lib/libwalk_controller">
-            <actuators>
-                <!-- Differential steering actuators -->
-                <differential_steering implementation="default" />
-                <!-- Range and Bearing actuators -->
-                <range_and_bearing implementation="default" />
-            </actuators>
-            <sensors>
-                <!-- Proximity sensors -->
-                <footbot_proximity implementation="default" show_rays="true" />
-                <!-- Range and Bearing sensors -->
-                <range_and_bearing implementation="medium"
-                                   medium="rab"
-                                   noise_std_dev="0"
-                                   packet_drop_prob="0.92"
-                                   show_rays="true" />
-            </sensors>
-            <params alpha="7.5" delta="0.1" velocity="3" size="1000" num_robots="20" />
-        </base_controller>
     </controllers>
 
     <!-- ****************** -->
@@ -174,7 +155,7 @@
     <!-- * Media * -->
     <!-- ********* -->
     <media>
-        <range_and_bearing id="rab" check_occlusions="true" />
+        <range_and_bearing id="rab" check_occlusions="false" />
     </media>
 
     <!-- ****************** -->
@@ -183,9 +164,7 @@
     <visualization>
         <qt-opengl>
             <camera>
-                <placements>
-                    <placement index="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />
-                </placements>
+                <placement idx="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />
             </camera>
         </qt-opengl>
     </visualization>

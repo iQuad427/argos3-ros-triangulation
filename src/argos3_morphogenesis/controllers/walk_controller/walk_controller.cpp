@@ -111,8 +111,6 @@ void CFootBotWalk::Init(TConfigurationNode &t_node) {
 
     GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
 
-    std::cout << m_fWheelVelocity << std::endl;
-
     // State machine
     m_state = MOVE;
     m_invert = false;
@@ -232,34 +230,128 @@ void CFootBotWalk::ControlStep() {
 
     /** Obstacle Avoidance Vector Computation */
 
-    if (m_go) {
-        /* Random Movement */
-        /* Get readings from proximity sensor */
-        const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
-        /* Sum them together */
-        CVector2 cAccumulator;
-        for (auto tProxRead: tProxReads) {
-            cAccumulator += CVector2(tProxRead.Value, tProxRead.Angle);
-        }
-        cAccumulator /= tProxReads.size();
-        /* If the angle of the vector is small enough and the closest obstacle
-         * is far enough, continue going straight, otherwise curve a little
-         */
-        CRadians cAngle = cAccumulator.Angle();
-        if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
-            cAccumulator.Length() < m_fDelta) {
+    /* Random Movement */
+    /* Get readings from proximity sensor */
+    const CCI_FootBotProximitySensor::TReadings &tProxReads = m_pcProximity->GetReadings();
+    /* Sum them together */
+    CVector2 cAccumulator;
+    for (auto tProxRead: tProxReads) {
+        cAccumulator += CVector2(tProxRead.Value, tProxRead.Angle);
+    }
+    cAccumulator /= tProxReads.size();
+    /* If the angle of the vector is small enough and the closest obstacle
+     * is far enough, continue going straight, otherwise curve a little
+     */
+    CRadians cAngle = cAccumulator.Angle();
+    if (m_cGoStraightAngleRange.WithinMinBoundIncludedMaxBoundIncluded(cAngle) &&
+        cAccumulator.Length() < m_fDelta) {
 
-            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
+        m_pcWheels->SetLinearVelocity(m_fWheelVelocity, m_fWheelVelocity);
 
+    } else {
+        /* Turn, depending on the sign of the angle */
+        if (cAngle.GetValue() > 0.0f) {
+            m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
         } else {
-            /* Turn, depending on the sign of the angle */
-            if (cAngle.GetValue() > 0.0f) {
-                m_pcWheels->SetLinearVelocity(m_fWheelVelocity, 0.0f);
-            } else {
-                m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
-            }
+            m_pcWheels->SetLinearVelocity(0.0f, m_fWheelVelocity);
         }
     }
+
+    // TODO: GetAttractionVector
+//    CCI_EPuckRangeAndBearingSensor::TPackets sRabPackets = m_pcRabMessageBuffer.GetMessages();
+//    CCI_EPuckRangeAndBearingSensor::TPackets::iterator it;
+//    CVector2 sRabVectorSum(0,CRadians::ZERO);
+//
+//    for (it = sRabPackets.begin(); it != sRabPackets.end(); it++) {
+//        if (((*it)->Data[0] != (UInt32) EpuckDAO::GetRobotIdentifier()) && ((*it)->Range > 0.0f)) {
+//            sRabVectorSum += CVector2((f_alpha_parameter / (Real) (1 + (*it)->Range)), (*it)->Bearing.SignedNormalize());
+//        }
+//    }
+//
+//
+//    CCI_EPuckRangeAndBearingSensor::SReceivedPacket cRaBReading;
+//    cRaBReading.Range = sRabVectorSum.Length();
+//    cRaBReading.Bearing = sRabVectorSum.Angle().SignedNormalize();
+//
+//    return cRaBReading;
+
+    // TODO: ComputeWheelsVelocityFromVector
+//    CVector2 c_vector_to_follow;
+//    Real fLeftVelocity = 0;
+//    Real fRightVelocity = 0;
+//    CRange<CRadians> cLeftHemisphere(CRadians::ZERO, CRadians::PI);
+//    CRange<CRadians> cRightHemisphere(CRadians::PI, CRadians::TWO_PI);
+//    CRadians cNormalizedVectorToFollow = c_vector_to_follow.Angle().UnsignedNormalize();
+//    // Compute relative wheel velocity
+//    // if (c_vector_to_follow.GetX() != 0 || c_vector_to_follow.GetY() != 0) {
+//    // 	if (cLeftHemisphere.WithinMinBoundExcludedMaxBoundExcluded(cNormalizedVectorToFollow)) {
+//    // 		fRightVelocity = 1;
+//    // 		fLeftVelocity = Max<Real>(-0.5f, Cos(cNormalizedVectorToFollow));
+//    // 	} else {
+//    // 		fRightVelocity = Max<Real>(-0.5f, Cos(cNormalizedVectorToFollow));
+//    // 		fLeftVelocity = 1;
+//    // 	}
+//    // }
+//    if (c_vector_to_follow.GetX() != 0 || c_vector_to_follow.GetY() != 0)
+//    {
+//        if (cLeftHemisphere.WithinMinBoundExcludedMaxBoundExcluded(cNormalizedVectorToFollow))
+//        {
+//            fRightVelocity = 1;
+//            fLeftVelocity = Cos(cNormalizedVectorToFollow);
+//        }
+//        else
+//        {
+//            fRightVelocity = Cos(cNormalizedVectorToFollow);
+//            fLeftVelocity = 1;
+//        }
+//    }
+//
+//    // Transform relative velocity according to max velocity allowed
+//    Real fVelocityFactor = m_pcRobotDAO->GetMaxVelocity() / Max<Real>(std::abs(fRightVelocity), std::abs(fLeftVelocity));
+//    CVector2 cWheelsVelocity = CVector2(fVelocityFactor * fLeftVelocity, fVelocityFactor * fRightVelocity);
+//
+//    return cWheelsVelocity;
+
+    // TODO: Aggregation behaviour
+//    CVector2 sRabVector(0, CRadians::ZERO);
+//    CVector2 sProxVector(0, CRadians::ZERO);
+//    CVector2 sResultVector(0, CRadians::ZERO);
+//    CCI_RVRRangeAndBearingSensor::SReceivedPacket cRabReading = m_pcRobotDAO->GetAttractionVectorToNeighbors(m_unAttractionParameter);
+//
+//    if (cRabReading.Range > 0.0f) {
+//        sRabVector = CVector2(cRabReading.Range, cRabReading.Bearing);
+//    }
+//
+//    sProxVector = CVector2(m_pcRobotDAO->GetProximityReading().Value, m_pcRobotDAO->GetProximityReading().Angle);
+//    sResultVector = sRabVector - 5 * sProxVector;
+//
+//    if (sResultVector.Length() < 0.1)
+//    {
+//        sResultVector = CVector2(1, CRadians::ZERO);
+//    }
+//
+//    m_pcRobotDAO->SetWheelsVelocity(ComputeWheelsVelocityFromVector(sResultVector));
+
+    // TODO: Repulsion behaviour
+//    CVector2 sRabVector(0, CRadians::ZERO);
+//    CVector2 sProxVector(0, CRadians::ZERO);
+//    CVector2 sResultVector(0, CRadians::ZERO);
+//    CCI_RVRRangeAndBearingSensor::SReceivedPacket cRabReading = m_pcRobotDAO->GetAttractionVectorToNeighbors(m_unRepulsionParameter);
+//
+//    if (cRabReading.Range > 0.0f) {
+//        sRabVector = CVector2(cRabReading.Range, cRabReading.Bearing);
+//    }
+//
+//
+//    sProxVector = CVector2(m_pcRobotDAO->GetProximityReading().Value, m_pcRobotDAO->GetProximityReading().Angle);
+//    sResultVector = -sRabVector - 5 * sProxVector;
+//
+//    if (sResultVector.Length() < 0.1)
+//    {
+//        sResultVector = CVector2(1, CRadians::ZERO);
+//    }
+//
+//    m_pcRobotDAO->SetWheelsVelocity(ComputeWheelsVelocityFromVector(sResultVector));
 
     ControlStepROS();
 }

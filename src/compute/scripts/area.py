@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import copy
 import math
 import pickle
 import sys
@@ -22,6 +23,9 @@ import matplotlib.backends.backend_agg as agg
 import pylab
 import pygame
 from pygame.locals import *
+
+import warnings
+warnings.filterwarnings("ignore")
 
 np.set_printoptions(linewidth=np.inf)
 matplotlib.use("Agg")
@@ -102,7 +106,7 @@ def add_for(x, y, dist_time):
 def build_distance_matrix(n, ):
     global hist_dist
     distancedequentin = np.zeros(shape=(n, n))
-    for (x, y), distances in hist_dist.items():
+    for (x, y), distances in copy.deepcopy(hist_dist).items():
         if len(distances) == 0:  # No data available
             continue
 
@@ -152,7 +156,10 @@ def compute_positions(distances, certainties, ref_plot, beacons=None):
         if ref_plot is None or ref_plot[(0, 0)] == .0:
             embedding = mds.fit_transform(matrix, weight=matrix_certainty)
         else:
-            embedding = mds.fit_transform(matrix, weight=matrix_certainty, init=ref_plot)
+            try:
+                embedding = mds.fit_transform(matrix, weight=matrix_certainty, init=ref_plot)
+            except:
+                embedding = mds.fit_transform(matrix, weight=matrix_certainty)
 
         # # Rotate dots to match previous plot
         # if ref_plot is not None:
