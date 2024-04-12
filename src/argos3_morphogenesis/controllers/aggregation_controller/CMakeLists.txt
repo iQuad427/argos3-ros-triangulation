@@ -1,0 +1,6 @@
+add_library(aggregation_controller MODULE aggregation_controller.h aggregation_controller.cpp)
+
+target_link_libraries(aggregation_controller
+  argos3core_simulator
+  argos3plugin_simulator_footbot
+  argos3plugin_simulator_genericrobot)

@@ -16,6 +16,8 @@ static const Real MIN_DISTANCE = 0.05f;
 /* Convenience constant to avoid calculating the square root in PostStep() */
 static const Real MIN_DISTANCE_SQUARED = MIN_DISTANCE * MIN_DISTANCE;
 
+int CStatisticsLoopFunctions::count;
+
 CStatisticsLoopFunctions::CStatisticsLoopFunctions() :
         m_nRobots(10) {}
 
@@ -46,7 +48,7 @@ void CStatisticsLoopFunctions::InitROS() {
 
     // Register the publisher to the ROS master
     m_matrixPublisher = node.advertise<tri_msgs::Agent>(distancePublisherName.str(), 10);
-    m_positionPublisher = node.advertise<tri_msgs::Odometry>(positionPublisherName.str(), 10);
+    m_positionPublisher = node.advertise<tri_msgs::Statistics>(positionPublisherName.str(), 10);
 
     // Prefill Messages
     m_matrixMessage.header.frame_id = distancePublisherName.str();
@@ -81,23 +83,28 @@ void CStatisticsLoopFunctions::ControlStepROS() {
         // Add the matrix
         tri_msgs::Item item;
 
-        // TODO: optimize data update, avoid creating everything from scratch each time
-        m_matrixMessage.distance_matrix.data.clear();
-
-        // Access and print the elements of the matrix
-        for (int i = 0; i < m_nRobots; ++i) {
-            for (int j = 0; j < m_nRobots; ++j) {
-                item.distance = m_distanceMatrix[i][j].first;
-                item.discount = m_distanceMatrix[i][j].second;
-                m_matrixMessage.distance_matrix.data.push_back(item);
-            }
-        }
-
-        m_matrixPublisher.publish(m_matrixMessage);
+//        // TODO: optimize data update, avoid creating everything from scratch each time
+//        m_matrixMessage.distance_matrix.data.clear();
+//
+//        // Access and print the elements of the matrix
+//        for (int i = 0; i < m_nRobots; ++i) {
+//            for (int j = 0; j < m_nRobots; ++j) {
+//                item.distance = m_distanceMatrix[i][j].first;
+//                item.discount = m_distanceMatrix[i][j].second;
+//                m_matrixMessage.distance_matrix.data.push_back(item);
+//            }
+//        }
+//
+//        m_matrixPublisher.publish(m_matrixMessage);
 
         /* Get the map of all foot-bots from the space */
         CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
         /* Go through them */
+
+        tri_msgs::Statistics statistics;
+        statistics.header.stamp = ros::Time::now();
+        statistics.header.frame_id = "simulation";
+
         for (CSpace::TMapPerType::iterator it = tFBMap.begin(); it != tFBMap.end(); ++it) {
             tri_msgs::Odometry odometry;
 
@@ -106,19 +113,24 @@ void CStatisticsLoopFunctions::ControlStepROS() {
             CVector3 position = pcFB->GetEmbodiedEntity().GetOriginAnchor().Position;
             CQuaternion orientation = pcFB->GetEmbodiedEntity().GetOriginAnchor().Orientation;
 
-            odometry.header.stamp = ros::Time::now();
+            // Header
+            odometry.id = (int8_t) pcFB->GetId()[2];
 
+            // Position
             odometry.x = position[0];
             odometry.y = position[1];
             odometry.z = position[2];
 
+            // Orientation
             odometry.a = orientation.GetX();
             odometry.b = orientation.GetY();
             odometry.c = orientation.GetZ();
             odometry.d = orientation.GetW();
 
-            m_positionPublisher.publish(odometry);
+            statistics.odometry_data.push_back(odometry);
         }
+
+        m_positionPublisher.publish(statistics);
 
         //update ROS status
         ros::spinOnce();
@@ -135,8 +147,10 @@ void CStatisticsLoopFunctions::Init(TConfigurationNode &t_tree) {
     int numRows = m_nRobots; // number of rows
     int numCols = m_nRobots; // number of columns
 
+    count = 0;
+
     // Resize the matrix to the specified number of rows and columns
-    m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
+//    m_distanceMatrix.resize(numRows, std::vector<DistanceFactorPair>(numCols));
 
     InitROS();
 }
@@ -146,40 +160,43 @@ void CStatisticsLoopFunctions::Init(TConfigurationNode &t_tree) {
 
 void CStatisticsLoopFunctions::Reset() {
     /* Clear distance matrix */
-    for (int i = 0; i < m_nRobots; ++i) {
-        m_distanceMatrix[i].clear();
-    }
+//    for (int i = 0; i < m_nRobots; ++i) {
+//        m_distanceMatrix[i].clear();
+//    }
+
+    count = 0;
 }
 
 /****************************************/
 /****************************************/
 
 void CStatisticsLoopFunctions::PostStep() {
-    /* Get the map of all foot-bots from the space */
-    CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
-    /* Go through them */
-    for (CSpace::TMapPerType::iterator it_1 = tFBMap.begin(); it_1 != tFBMap.end(); ++it_1) {
-        /* Create a pointer to the current foot-bot */
-        CFootBotEntity *pcFB_1 = any_cast<CFootBotEntity *>(it_1->second);
-
-        for (CSpace::TMapPerType::iterator it_2 = tFBMap.begin(); it_2 != tFBMap.end(); ++it_2) {
-            /* Create a pointer to the current foot-bot */
-            CFootBotEntity *pcFB_2 = any_cast<CFootBotEntity *>(it_2->second);
-
-            if (((it_1->first)[2] - 'A') > ((it_2->first)[2] - 'A')) {
-                continue;
-            }
-
-            /* Add the current position of the foot-bot if it's sufficiently far from the last */
-            Real distance = std::sqrt(SquareDistance(
-                    pcFB_1->GetEmbodiedEntity().GetOriginAnchor().Position,
-                    pcFB_2->GetEmbodiedEntity().GetOriginAnchor().Position
-            )) * 100;
-
-            m_distanceMatrix[(int) ((it_1->first)[2] - 'A')][(int) ((it_2->first)[2] - 'A')] = std::make_pair(distance, 1);
-        }
-    }
+//    /* Get the map of all foot-bots from the space */
+//    CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
+//    /* Go through them */
+//    for (CSpace::TMapPerType::iterator it_1 = tFBMap.begin(); it_1 != tFBMap.end(); ++it_1) {
+//        /* Create a pointer to the current foot-bot */
+//        CFootBotEntity *pcFB_1 = any_cast<CFootBotEntity *>(it_1->second);
+//
+//        for (CSpace::TMapPerType::iterator it_2 = tFBMap.begin(); it_2 != tFBMap.end(); ++it_2) {
+//            /* Create a pointer to the current foot-bot */
+//            CFootBotEntity *pcFB_2 = any_cast<CFootBotEntity *>(it_2->second);
+//
+//            if (((it_1->first)[2] - 'A') > ((it_2->first)[2] - 'A')) {
+//                continue;
+//            }
+//
+//            /* Add the current position of the foot-bot if it's sufficiently far from the last */
+//            Real distance = std::sqrt(SquareDistance(
+//                    pcFB_1->GetEmbodiedEntity().GetOriginAnchor().Position,
+//                    pcFB_2->GetEmbodiedEntity().GetOriginAnchor().Position
+//            )) * 100;
+//
+//            m_distanceMatrix[(int) ((it_1->first)[2] - 'A')][(int) ((it_2->first)[2] - 'A')] = std::make_pair(distance, 1);
+//        }
+//    }
     ControlStepROS();
+    count++;
 }
 
 /****************************************/

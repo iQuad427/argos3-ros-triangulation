@@ -3,6 +3,7 @@ import copy
 import math
 import pickle
 import sys
+import time
 from collections import defaultdict
 from datetime import datetime
 
@@ -12,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from morpho_msgs.msg import Direction, Angle, RangeAndBearing
 from sklearn.linear_model import LinearRegression
-from tri_msgs.msg import Distances, Distance, Odometry
+from tri_msgs.msg import Distances, Distance, Odometry, Statistics
 
 from utils import find_rotation_matrix
 from direction import find_direction_vector_from_position_history, range_and_bearing, generate_weighted_vector
@@ -44,11 +45,12 @@ screen = pygame.display.get_surface()
 
 clock = pygame.time.Clock()
 
-iteration_rate = 1
-
 # Distance Measurements
 distance_matrix = None
 certainty_matrix = None
+
+# Uncertainty on agents
+last_update = None
 
 # dict
 hist_dist = defaultdict(list)
@@ -132,12 +134,6 @@ def build_distance_matrix(n, ):
     return distancedequentin
 
 
-modified = False
-
-# Uncertainty on agents
-last_update = None
-
-
 def compute_positions(distances, certainties, ref_plot, beacons=None):
     if distances is not None:
         matrix = distances
@@ -146,10 +142,6 @@ def compute_positions(distances, certainties, ref_plot, beacons=None):
         # Make sure the matrix is symmetric
         matrix = (matrix + matrix.T) / 2  # removed '/2' because triangular matrix
         matrix_certainty = (certainties + certainties.T)
-
-        print("A", matrix_certainty)
-        print(matrix)
-        print()
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
         mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
@@ -190,7 +182,7 @@ def compute_positions(distances, certainties, ref_plot, beacons=None):
         return embedding
 
 
-def update_plot(agent, distances, embedding, historic, measurement_uncertainty, time_uncertainty):
+def update_plot(agent, distances, embedding, historic, direction_vector=None, rab_measurements=None):
     if distances is None:
         raise ValueError("Distance matrix should be defined at this point")
 
@@ -216,60 +208,35 @@ def update_plot(agent, distances, embedding, historic, measurement_uncertainty, 
     plt.scatter(embedding[:, 0], embedding[:, 1], c='red')
     plt.scatter(embedding[agent, 0], embedding[agent, 1], c='blue')
 
-    # Make the triangle matrix symmetric to simplify data access
-    distances = distances + distances.T
-
     for i, point in enumerate(reversed(historic)):
         ax.add_patch(
             plt.Circle(
                 point,
-                time_uncertainty,
+                30 * 1 + 10,
                 color='r',
                 fill=False,
                 alpha=0.5 / (i + 1),
-            )
+                )
         )
 
-    # for i, position in enumerate(embedding):
-    #     ax.add_patch(
-    #         plt.Circle(
-    #             position,
-    #             time_uncertainty,
-    #             color='r', fill=False
-    #         )
-    #     )
-    #     ax.add_patch(
-    #         plt.Circle(
-    #             position,
-    #             distances[0, i],
-    #             color='b', fill=False,
-    #             linewidth=10 / (1 - measurement_uncertainty[i]), alpha=0.1
-    #         )
-    #     )
-
-    if historic:
+    if direction_vector is not None:
         # Plot the direction vector (from agent of interest)
-        direction_vector = find_direction_vector_from_position_history(historic) * 10
-        direction_vector = generate_weighted_vector(add_direction(direction_vector))
-
         plt.quiver(
             *historic[-1], direction_vector[0] * 10, direction_vector[1] * 10,
             angles='xy', scale_units='xy', scale=1, color='r', label='Direction vector'
         )
 
-        # Find the range and bearing to the other agents
-        _range_and_bearing = range_and_bearing(agent, direction_vector, historic, np.array(embedding))
-
         # Compute the angle between the direction vector and the x-axis
         angle = np.arctan2(direction_vector[1], direction_vector[0])
 
-        # Plot the range and bearing relative to the agent of interest direction
-        for i, (r, b) in enumerate(_range_and_bearing):
-            plt.quiver(
-                *historic[-1], r * np.cos(b + angle), r * np.sin(b + angle),
-                angles='xy', scale_units='xy', scale=1, color='g', alpha=0.5,
-                label=f'Agent {i + 1}'
-            )
+        if rab_measurements is not None:
+            # Plot the range and bearing relative to the agent of interest direction
+            for i, (r, b) in enumerate(rab_measurements):
+                plt.quiver(
+                    *historic[-1], r * np.cos(b + angle), r * np.sin(b + angle),
+                    angles='xy', scale_units='xy', scale=1, color='g', alpha=0.5,
+                    label=f'Agent {i + 1}'
+                )
 
     # Redraw the canvas
     canvas.draw()
@@ -289,7 +256,7 @@ def add_distance(robot_idx, data: Distance):
     :param data: the distance it measured, with the certainty
     :return: Nothing, only parse to add to the distance_matrix
     """
-    global distance_matrix, certainty_matrix, modified
+    global distance_matrix, certainty_matrix
 
     if distance_matrix is None or last_update is None:
         raise ValueError("Distance matrix, certainty matrix and update table should be created at this point")
@@ -307,8 +274,6 @@ def add_distance(robot_idx, data: Distance):
         distance_matrix[x, y] = data.distance
         certainty_matrix[x, y] = data.certainty
         add_for(x, y, (data.distance, datetime.now().timestamp()))
-
-        modified = True
 
 
 def callback(data, args):
@@ -368,7 +333,7 @@ def compute_time_uncertainty(time, speed, error):
 
 
 def listener():
-    global distance_matrix, certainty_matrix, modified, last_update, iteration_rate
+    global distance_matrix, certainty_matrix, last_update
 
     # Parse arguments
     ros_launch_param = sys.argv[1]
@@ -393,6 +358,7 @@ def listener():
     rospy.Subscriber(f'/{ros_launch_param}/distances', Distances, callback, (self_id,))
     rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, callback, (self_id,))
     pub = rospy.Publisher(f'/{ros_launch_param}/range_and_bearing', RangeAndBearing, queue_size=10)
+    statistics_pub = rospy.Publisher(f'/{ros_launch_param}/positions', Statistics, queue_size=10)
 
     data = []
     historic = []
@@ -406,70 +372,96 @@ def listener():
         beacons=beacons
     )  # Current estimation of the positions
 
-    position_estimation = np.copy(previous_estimation)
-
-    plot_converged = False
     count = 0
 
-    with open("output/output.txt", "wb") as f:
-        crashed = False
-        while not crashed:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or rospy.is_shutdown():
-                    crashed = True
+    crashed = False
+    while not crashed:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or rospy.is_shutdown():
+                crashed = True
 
-            # Direction estimation
-            measurement_uncertainty = compute_measurement_uncertainty(certainty_matrix)
-            time_uncertainty = compute_time_uncertainty(iteration_rate, 15, 10)
-            new_dm = build_distance_matrix(n_robots)
+        # Smoothing of distance
+        new_dm = build_distance_matrix(n_robots)
 
-            update_plot(self_id - ord('A'), new_dm, previous_estimation, historic, measurement_uncertainty, time_uncertainty)
+        # Update the data in the plot
+        position_estimation = compute_positions(new_dm, certainty_matrix, previous_estimation, beacons=beacons)
 
-            if True:  # Only render and send message if data has changed
-                # Update the data in the plot
-                position_estimation = compute_positions(new_dm, certainty_matrix, previous_estimation, beacons=beacons)
+        # Smoothing of agents positions
+        add_position(position_estimation)
+        corr_position = correlated_positions(n_robots)
 
-                add_position(position_estimation)
-                corr_position = correlated_positions(n_robots)
+        # Update position historic
+        historic.append(list(position_estimation[self_id - ord('A')]))
+        historic = historic[-5:]
 
-                print(position_estimation)
+        # Smoothing of direction
+        direction_vector = find_direction_vector_from_position_history(historic) * 10
+        direction_vector = generate_weighted_vector(add_direction(direction_vector))
 
-                # If new plot is close to the previous one, consider convergence
-                if count > 10:
-                    plot_converged = True
-                else:
-                    count += 1
+        _range_and_bearing = range_and_bearing(self_id - ord('A'), direction_vector, new_dm, historic, np.array(position_estimation))
 
-                print(count)
+        # Compute direction of agent
+        iteration_rate = 30
+        bypass = False
+        if count % (iteration_rate * 0.5) == 0 or bypass:
+            msg = generate_msg(_range_and_bearing)
+            pub.publish(msg)
 
-                historic.append(list(position_estimation[self_id - ord('A')]))
-                historic = historic[-5:]
+        # Update the plot
+        update_plot(self_id - ord('A'), new_dm, previous_estimation, historic, direction_vector, _range_and_bearing)
 
-                # If the plot has converged, start sending information to agent (start mission)
-                if plot_converged:
-                    # Compute direction of agent
-                    msg = compute_direction()
-                    pub.publish(msg)
+        # Save current estimation
+        previous_estimation = np.copy(position_estimation)
 
-            # Save the data for later stats
-            if position_estimation is not None:
-                data.append(position_estimation)
+        # Save the data for later stats
+        statistics_msg = Statistics()
+        statistics_msg.header.stamp = rospy.Time.from_sec(datetime.now().timestamp())
+        print(statistics_msg.header.stamp)
+        statistics_msg.header.frame_id = f"agent_{ros_launch_param}"
 
-            previous_estimation = np.copy(position_estimation)
-            # Tick for uncertainty increase
-            last_update = last_update + 1
-            certainty_matrix = certainty_matrix * 0.99
+        for i, position in enumerate(position_estimation):
+            print(i)
+            print(position)
 
-            # Tick the update clock
-            clock.tick(60)  # Limit to 30 frames per second
+            odometry_data = Odometry(
+                id=i,
+                x=position[0],
+                y=position[1],
+            )
 
-        pickle.dump(data, f)
+            statistics_msg.odometry_data.append(odometry_data)
+
+        statistics_pub.publish(statistics_msg)
+
+        # Tick for uncertainty increase
+        last_update = last_update + 1
+        certainty_matrix = certainty_matrix * 0.99
+
+        # Tick the update clock
+        clock.tick(iteration_rate)  # Limit to X frames per second
+        count += 1
 
 
-def compute_direction():
+def generate_msg(rab_measurements):
     msg = RangeAndBearing()
-    msg.go = True
+
+    attraction_vector = compute_attraction_vector(rab_measurements)
+
+    msg.x = attraction_vector[0]
+    msg.y = attraction_vector[1]
+
     return msg
+
+
+def compute_attraction_vector(rab_measurements, alpha=1):
+    print(rab_measurements)
+
+    accumulator = np.array([0., 0.])
+
+    for measurement in rab_measurements:
+        accumulator += np.array([alpha / (1 + measurement[0]), measurement[1] % (2 * math.pi)])
+
+    return accumulator[0], accumulator[1] % (2 * math.pi)
 
 
 if __name__ == '__main__':

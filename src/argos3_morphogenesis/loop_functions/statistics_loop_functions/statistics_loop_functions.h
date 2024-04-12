@@ -15,6 +15,9 @@
 #include <tri_msgs/Matrix.h>
 #include <tri_msgs/Agent.h>
 #include <tri_msgs/Odometry.h>
+#include <tri_msgs/Statistics.h>s
+
+
 
 using namespace argos;
 
@@ -58,6 +61,8 @@ private:
     /* Distance Matrix */
     DistanceMatrix m_distanceMatrix; // distance matrix for the range and bearing communication
     int m_nRobots;
+
+    static int count;
 
     /* ROS Publisher */
     ros::Publisher m_positionPublisher;

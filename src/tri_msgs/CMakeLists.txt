@@ -7,6 +7,7 @@ add_message_files(
         DIRECTORY msg
         FILES
         Odometry.msg
+        Statistics.msg
         Distance.msg
         Distances.msg
         Item.msg
