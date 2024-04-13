@@ -61,12 +61,7 @@ void CFootBotWalk::InitROS() {
     m_directionSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
 }
 
-void CFootBotWalk::CallbackROS(const morpho_msgs::RangeAndBearing::ConstPtr& msg) {
-    m_go = msg->go;
-//    m_distance = msg->distance;
-//    m_angle = msg->angle;
-//    m_direction = msg->direction;
-}
+void CFootBotWalk::CallbackROS(const morpho_msgs::RangeAndBearing::ConstPtr& msg) {}
 
 void CFootBotWalk::ControlStepROS() {
     if (ros::ok()) {
@@ -116,9 +111,6 @@ void CFootBotWalk::Init(TConfigurationNode &t_node) {
     m_invert = false;
     m_counter = 0;
 
-    // ROS Messages
-    m_go = false;
-
     // Fill the distance table with ones
     m_distanceTable.resize(m_nRobots, DistanceFactorPair(0, 1));
 
@@ -136,9 +128,6 @@ void CFootBotWalk::Reset() {
     m_state = MOVE;
     m_invert = false;
     m_counter = 0;
-
-    // ROS Messages
-    m_go = false;
 }
 
 /****************************************/

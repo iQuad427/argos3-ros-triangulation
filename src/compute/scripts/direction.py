@@ -180,7 +180,7 @@ def generate_weighted_vector(vectors):
     return weighted_average_x, weighted_average_y
 
 
-def range_and_bearing(agent, direction, historic, plot):
+def range_and_bearing(agent, direction, distances, historic, plot):
     """
     Estimate the relative direction of all agents
 
@@ -223,7 +223,7 @@ def range_and_bearing(agent, direction, historic, plot):
             # Compute the range and bearing
             _rab.append(
                 [
-                    np.linalg.norm(relative_position),
+                    distances[agent, x],
                     np.arctan2(relative_position[1], relative_position[0])
                 ]
             )

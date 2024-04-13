@@ -15,7 +15,7 @@
 #include <tri_msgs/Matrix.h>
 #include <tri_msgs/Agent.h>
 #include <tri_msgs/Odometry.h>
-#include <tri_msgs/Statistics.h>s
+#include <tri_msgs/Statistics.h>
 
 
 

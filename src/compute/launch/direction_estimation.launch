@@ -1,4 +1,5 @@
 <launch>
+    <node pkg="compute" type="statistics.py" name="statisticsA" output="screen" cwd="node" args="$(arg n) $(arg a)"></node>
     <node pkg="compute" type="area.py" name="areaA" output="screen" cwd="node" args="$(arg a) $(arg n) $(arg beacons)"></node>
 <!--     <node pkg="compute" type="area.py" name="areaB" output="screen" cwd="node" args="$(arg b) $(arg n) $(arg beacons)"></node> -->
 <!--     <node pkg="compute" type="area.py" name="areaC" output="screen" cwd="node" args="$(arg c) $(arg n) $(arg beacons)"></node> -->

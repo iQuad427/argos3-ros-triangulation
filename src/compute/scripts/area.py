@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 import copy
 import math
 import pickle
@@ -416,12 +417,12 @@ def listener():
         # Save the data for later stats
         statistics_msg = Statistics()
         statistics_msg.header.stamp = rospy.Time.from_sec(datetime.now().timestamp())
-        print(statistics_msg.header.stamp)
+        # print(statistics_msg.header.stamp)
         statistics_msg.header.frame_id = f"agent_{ros_launch_param}"
 
         for i, position in enumerate(position_estimation):
-            print(i)
-            print(position)
+            # print(i)
+            # print(position)
 
             odometry_data = Odometry(
                 id=i,
@@ -454,7 +455,7 @@ def generate_msg(rab_measurements):
 
 
 def compute_attraction_vector(rab_measurements, alpha=1):
-    print(rab_measurements)
+    # print(rab_measurements)
 
     accumulator = np.array([0., 0.])
 

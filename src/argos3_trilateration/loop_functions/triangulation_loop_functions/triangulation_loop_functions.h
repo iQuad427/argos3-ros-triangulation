@@ -46,8 +46,6 @@ public:
 
     virtual void PostStep();
 
-    // TODO: post positions of each robot to a ROS Topic
-
     /* ROS related methods */
     virtual void InitROS();
     virtual void ControlStepROS();
