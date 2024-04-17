@@ -32,15 +32,15 @@
                                    packet_drop_prob="0.95"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="20" />
+            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="20" />
         </walk_controller>
     </controllers>
 
     <!-- ****************** -->
     <!-- * Loop functions * -->
     <!-- ****************** -->
-    <loop_functions library="devel/lib/libtriangulation_loop_functions"
-                    label="triangulation_loop_functions"
+    <loop_functions library="devel/lib/libstatistics_loop_functions"
+                    label="statistics_loop_functions"
                     num_robots="20" />
 
 

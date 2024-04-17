@@ -168,7 +168,7 @@ def _smacof_single(
                     v = np.zeros((n_samples, 1))
                     v[nn], v[mm] = 1, -1
                     V += weight[nn, mm] * np.dot(v, v.T)
-        X = np.dot(np.linalg.pinv(V), np.dot(B, X))
+            X = np.dot(np.linalg.pinv(V), np.dot(B, X))
 
         dis = np.sqrt((X ** 2).sum(axis=1)).sum()
         if verbose >= 2:

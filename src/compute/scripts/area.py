@@ -53,6 +53,9 @@ certainty_matrix = None
 # Uncertainty on agents
 last_update = None
 
+# Running
+running = False
+
 # dict
 hist_dist = defaultdict(list)
 
@@ -137,22 +140,27 @@ def build_distance_matrix(n, ):
 
 def compute_positions(distances, certainties, ref_plot, beacons=None):
     if distances is not None:
-        matrix = distances
-
         # Update the data in the plot
         # Make sure the matrix is symmetric
-        matrix = (matrix + matrix.T) / 2  # removed '/2' because triangular matrix
+        matrix = (distances + distances.T) / 2  # removed '/2' because triangular matrix
         matrix_certainty = (certainties + certainties.T)
+
+        print(matrix)
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
         mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
-        if ref_plot is None or ref_plot[(0, 0)] == .0:
-            embedding = mds.fit_transform(matrix, weight=matrix_certainty)
-        else:
-            try:
-                embedding = mds.fit_transform(matrix, weight=matrix_certainty, init=ref_plot)
-            except:
-                embedding = mds.fit_transform(matrix, weight=matrix_certainty)
+        embedding = mds.fit_transform(matrix)
+
+        # Print distance between point 1 and 2
+        print(np.linalg.norm(embedding[0] - embedding[1]))
+
+        # if ref_plot is None or ref_plot[(0, 0)] == .0:
+        #     embedding = mds.fit_transform(matrix, weight=matrix_certainty)
+        # else:
+        #     try:
+        #         embedding = mds.fit_transform(matrix, weight=matrix_certainty, init=ref_plot)
+        #     except:
+        #         embedding = mds.fit_transform(matrix, weight=matrix_certainty)
 
         # # Rotate dots to match previous plot
         # if ref_plot is not None:
@@ -220,24 +228,24 @@ def update_plot(agent, distances, embedding, historic, direction_vector=None, ra
                 )
         )
 
-    if direction_vector is not None:
-        # Plot the direction vector (from agent of interest)
-        plt.quiver(
-            *historic[-1], direction_vector[0] * 10, direction_vector[1] * 10,
-            angles='xy', scale_units='xy', scale=1, color='r', label='Direction vector'
-        )
-
-        # Compute the angle between the direction vector and the x-axis
-        angle = np.arctan2(direction_vector[1], direction_vector[0])
-
-        if rab_measurements is not None:
-            # Plot the range and bearing relative to the agent of interest direction
-            for i, (r, b) in enumerate(rab_measurements):
-                plt.quiver(
-                    *historic[-1], r * np.cos(b + angle), r * np.sin(b + angle),
-                    angles='xy', scale_units='xy', scale=1, color='g', alpha=0.5,
-                    label=f'Agent {i + 1}'
-                )
+    # if direction_vector is not None:
+    #     # Plot the direction vector (from agent of interest)
+    #     plt.quiver(
+    #         *historic[-1], direction_vector[0] * 10, direction_vector[1] * 10,
+    #         angles='xy', scale_units='xy', scale=1, color='r', label='Direction vector'
+    #     )
+    #
+    #     # Compute the angle between the direction vector and the x-axis
+    #     angle = np.arctan2(direction_vector[1], direction_vector[0])
+    #
+    #     if rab_measurements is not None:
+    #         # Plot the range and bearing relative to the agent of interest direction
+    #         for i, (r, b) in enumerate(rab_measurements):
+    #             plt.quiver(
+    #                 *historic[-1], r * np.cos(b + angle), r * np.sin(b + angle),
+    #                 angles='xy', scale_units='xy', scale=1, color='g', alpha=0.5,
+    #                 label=f'Agent {i + 1}'
+    #             )
 
     # Redraw the canvas
     canvas.draw()
@@ -278,7 +286,9 @@ def add_distance(robot_idx, data: Distance):
 
 
 def callback(data, args):
-    global last_update
+    global last_update, running
+
+    running = True
 
     if last_update is None:
         raise ValueError("Update table should be created at this point")
@@ -334,7 +344,7 @@ def compute_time_uncertainty(time, speed, error):
 
 
 def listener():
-    global distance_matrix, certainty_matrix, last_update
+    global distance_matrix, certainty_matrix, last_update, running
 
     # Parse arguments
     ros_launch_param = sys.argv[1]
@@ -367,7 +377,7 @@ def listener():
     # Save previous values
     previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
     previous_estimation = compute_positions(
-        distance_matrix,
+        (distance_matrix + distance_matrix.T),
         certainty_matrix,
         previous_estimation,
         beacons=beacons
@@ -375,14 +385,24 @@ def listener():
 
     count = 0
 
+    update_plot(self_id - ord('A'), distance_matrix, previous_estimation, historic)
+
+    iteration_rate = 30
     crashed = False
     while not crashed:
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT or rospy.is_shutdown():
                 crashed = True
 
+        if not running:
+            clock.tick(iteration_rate)  # Limit frames per second
+            continue
+
         # Smoothing of distance
-        new_dm = build_distance_matrix(n_robots)
+        # TODO: use new_dm to use regression on distance matrix
+        new_dm = distance_matrix + distance_matrix.T
+        # new_dm = build_distance_matrix(n_robots)
 
         # Update the data in the plot
         position_estimation = compute_positions(new_dm, certainty_matrix, previous_estimation, beacons=beacons)
@@ -402,7 +422,6 @@ def listener():
         _range_and_bearing = range_and_bearing(self_id - ord('A'), direction_vector, new_dm, historic, np.array(position_estimation))
 
         # Compute direction of agent
-        iteration_rate = 30
         bypass = False
         if count % (iteration_rate * 0.5) == 0 or bypass:
             msg = generate_msg(_range_and_bearing)

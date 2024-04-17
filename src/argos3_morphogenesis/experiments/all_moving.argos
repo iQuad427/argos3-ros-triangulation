@@ -29,10 +29,10 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0.1"
-                                   packet_drop_prob="0.95"
+                                   packet_drop_prob="0.50"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="4" />
+            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="4" />
         </walk_controller>
     </controllers>
 
@@ -41,7 +41,7 @@
     <!-- ****************** -->
     <loop_functions library="devel/lib/libstatistics_loop_functions"
                     label="statistics_loop_functions"
-                    num_robots="5" />
+                    num_robots="4" />
 
 
     <!-- *********************** -->
