@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 from utils import rotate_and_translate
 
+from tqdm import tqdm
+
 
 @dataclasses.dataclass
 class Position:
@@ -89,35 +91,61 @@ class FileReader:
 
 
 if __name__ == '__main__':
-    for drop in [0.00, 0.50, 0.95]:
-        # Read the file
-        file_reader = FileReader(f"../output/experiments/static/drop_{drop:0.2f}_err_0.1")
+    # Seed 1 : 124
+    # Seed 2 : 042
+    # Seed 3 : 427
+    # Seed 4 : 097
+    # Seed 5 : 172
 
-        print("[0] File :", file_reader.file_path)
-        print("[0] File name :", file_reader.file_name)
+    limit = 300
 
+    for drop in tqdm([0.00, 0.50, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99]):
         # Plot the Mean Square Error of the positions
         mean_square_error = []
+        time = np.arange(0, limit) / 10
 
-        for est, sim in file_reader.make_numpy():
-            print(est)
-            print(sim)
-            mse = np.mean(np.square(est - sim))
-            mean_square_error.append(mse)
+        # Read the file
+        for batch in range(1, 6):
+            file_name = f"drop_{drop:0.2f}_err_0.1_batch_{batch}" if len(str(drop)) <= len(f"{drop:0.2f}") else f"drop_{drop:0.3f}_err_0.1_batch_{batch}"
 
-        # mean_square_error = [0 if mse > 5000 else mse for mse in mean_square_error]
+            try:
+                file_reader = FileReader(f"../output/experiments/static/{file_name}")
+            except:
+                continue
+
+            mses = []
+
+            # print("[0] File :", file_reader.file_path)
+            # print("[0] File name :", file_reader.file_name)
+
+            for est, sim in file_reader.make_numpy():
+                mse = np.mean(np.square(est - sim))
+                mses.append(mse)
+
+            # If MSEs is shorter than limit, add last value to fill up
+            while len(mses) < limit:
+                mses = mses + [mses[-1]]
+
+            mses = mses[:limit]
+
+            mean_square_error.append(mses)
+
+        # Average the result for each time_step
+        mean_square_error = np.mean(np.array(mean_square_error), axis=0)
 
         # Axis labels
         plt.xlabel("Time (s)")
         plt.ylabel("Mean Square Error (cm²)")
 
         # Plot the Mean Square Error
-        plt.plot(file_reader.time, mean_square_error, label=f"Drop rate: {drop:0.2f}")
+        label = f"Drop rate: {drop:0.2f}" if len(str(drop)) <= len(f"{drop:0.2f}") else f"Drop rate: {drop:0.3f}"
+        plt.plot(time, mean_square_error[:limit], label=label)
 
         # Plot red dots where mean square error is zero
-        for i, mse in enumerate(mean_square_error):
-            if mse == 0:
-                plt.scatter(file_reader.time[i], 0, c='r')
+        # for i, mse in enumerate(mean_square_error):
+        #     if mse == 0:
+        #         plt.scatter(file_reader.time[i], 0, c='r')
 
     plt.legend()
+    plt.savefig("../output/mse_drop.png", dpi=300)
     plt.show()

@@ -8,7 +8,7 @@
         <system threads="0" />
         <experiment length="0"
                     ticks_per_second="10"
-                    random_seed="124" />
+                    random_seed="172" />
     </framework>
 
     <!-- *************** -->
@@ -29,7 +29,7 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0.1"
-                                   packet_drop_prob="0.50"
+                                   packet_drop_prob="0.99"
                                    show_rays="true" />
             </sensors>
             <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="4" />
