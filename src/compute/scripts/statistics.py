@@ -12,18 +12,17 @@ import sys
 
 from tri_msgs.msg import Statistics, Odometry
 
-from plot_2 import Position, Memory, FileReader
+from plot_mse import Position, Memory, FileReader
 from utils import rotate_and_translate
 
 iterate = False
-compute = True
+stop = False
 
 
 # Add handler for SIGINT
 def signal_handler(sig, frame):
-    global compute
-    compute = False
-    print("Exiting...")
+    global stop
+    stop = True
 
 
 def positions_callback(positions, args):
@@ -85,7 +84,7 @@ def listener():
     # Name of file is statistics_output_dd_mm_hh_mm.txt
     with open(f"{output_dir}/{output_file}", "w+") as f:
         # f.write("type,time,position\n")  # Write header for CSV file
-        while compute:
+        while not stop:
             if iterate:
                 ground_truth = simulation_positions[-1]
                 estimation = estimated_positions[-1]
@@ -148,6 +147,7 @@ def listener():
 
     # Plot the Mean Square Error
     plt.plot(file_reader.time, mean_square_error)
+    plt.savefig(f"{output_dir}/mse_{experiment_date.strftime('%d_%m_%H_%M')}.png")
     plt.show()
 
 

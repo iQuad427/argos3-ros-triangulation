@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="compute" type="statistics.py" name="statisticsA" output="screen" cwd="node" args="$(arg n) $(arg a)"></node>
-</launch>

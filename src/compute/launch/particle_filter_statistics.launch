@@ -1,0 +1,14 @@
+<launch>
+    <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
+    <arg name="output_dir" value="/home/quentin/Dev/argos3-ros-triangulation/src/compute/output/experiments/particle_filter" />
+    <arg name="output_file" value="particle_filter_test" />
+    <arg name="n" default="4" />
+    <arg name="a" default="fbA" />
+
+    <node pkg="compute" type="statistics.py" name="statistics" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg a)" launch-prefix="$(arg venv)" ></node>
+    <node pkg="compute" type="particle_filter.py" name="particle_filter" output="screen" cwd="node" args="$(arg a) $(arg n)" launch-prefix="$(arg venv)"></node>
+</launch>
+
+
+<!--  Argument beacon give the ID of the agent being a beacon in the experiment -->
+<!--  roslaunch compute real_triangulation.launch n:="5" a:="fbA" b:="fbB" c:="fbC" d:="fbD" e:="fbE" beacons:="E" -->

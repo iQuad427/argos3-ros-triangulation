@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import copy
+import dataclasses
 import math
 import pickle
 import sys
@@ -16,7 +17,7 @@ from morpho_msgs.msg import Direction, Angle, RangeAndBearing
 from sklearn.linear_model import LinearRegression
 from tri_msgs.msg import Distances, Distance, Odometry, Statistics
 
-from utils import find_rotation_matrix
+from utils import find_rotation_matrix, MultiAgentParticleFilter
 from direction import find_direction_vector_from_position_history, range_and_bearing, generate_weighted_vector
 
 from sklearn.manifold import MDS
@@ -27,6 +28,7 @@ import pygame
 from pygame.locals import *
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 np.set_printoptions(linewidth=np.inf)
@@ -111,7 +113,7 @@ def add_for(x, y, dist_time):
 # Function to build the distance matrix using linear regression
 def build_distance_matrix(n, ):
     global hist_dist
-    distancedequentin = np.zeros(shape=(n, n))
+    matrix = np.zeros(shape=(n, n))
     for (x, y), distances in copy.deepcopy(hist_dist).items():
         if len(distances) == 0:  # No data available
             continue
@@ -132,70 +134,29 @@ def build_distance_matrix(n, ):
             current_distance = model.predict([[datetime.now().timestamp()]])[0]
 
         # Update the distance matrix
-        distancedequentin[(x, y)] = current_distance
-        distancedequentin[(y, x)] = current_distance
+        matrix[(x, y)] = current_distance
+        matrix[(y, x)] = current_distance
 
-    return distancedequentin
-
-
-def compute_positions(distances, certainties, ref_plot, beacons=None):
-    if distances is not None:
-        # Update the data in the plot
-        # Make sure the matrix is symmetric
-        matrix = (distances + distances.T) / 2  # removed '/2' because triangular matrix
-        matrix_certainty = (certainties + certainties.T)
-
-        print(matrix)
-
-        # Use sklearn MDS to reduce the dimensionality of the matrix
-        mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True, random_state=42)
-
-        if ref_plot is None or ref_plot[(0, 0)] == .0:
-            embedding = mds.fit_transform(matrix)
-        else:
-            try:
-                embedding = mds.fit_transform(matrix, init=ref_plot)
-            except:
-                embedding = mds.fit_transform(matrix)
-
-        # if ref_plot is None or ref_plot[(0, 0)] == .0:
-        #     embedding = mds.fit_transform(matrix, weight=matrix_certainty)
-        # else:
-        #     try:
-        #         embedding = mds.fit_transform(matrix, weight=matrix_certainty, init=ref_plot)
-        #     except:
-        #         embedding = mds.fit_transform(matrix, weight=matrix_certainty)
-
-        # # Rotate dots to match previous plot
-        # if ref_plot is not None:
-        #     if beacons is None or len(beacons) < 2:
-        #         rotation = find_rotation_matrix(ref_plot.T, embedding.T)
-        #     else:
-        #         rotation = find_rotation_matrix(ref_plot[beacons].T, embedding[beacons].T)
-        #
-        #     # Apply the rotation
-        #     embedding = embedding @ rotation
-        #
-        #     if beacons is None:
-        #         # First, find the centroid of the original points
-        #         previous_centroid = np.mean(ref_plot, axis=0)
-        #         # Then, find the centroid of the MDS points
-        #         current_centroid = np.mean(embedding, axis=0)
-        #     else:
-        #         # TODO: beacons should be the list of IDs of the beacons (therefore, need to modify code)
-        #         previous_centroid = np.mean(ref_plot[beacons], axis=0)
-        #         current_centroid = np.mean(embedding[beacons], axis=0)
-        #
-        #     # Find the translation vector
-        #     translation = previous_centroid - current_centroid
-        #
-        #     # Translate the MDS points
-        #     embedding = embedding + translation
-
-        return embedding
+    return matrix
 
 
-def update_plot(agent, distances, embedding, historic, direction_vector=None, rab_measurements=None):
+def compute_positions(distances, multi_agent_pf, config=None):
+    # Predict
+    multi_agent_pf.predict(u=(0, config.agents_speed), std=(6.28, 5), dt=min((config.last_time - datetime.now()).seconds, config.dt))
+    config.last_time = datetime.now()
+
+    # Update
+    z = np.copy(distances)  # Z is the distance matrix of real agents
+    multi_agent_pf.update(z, config.sensor_std_err, multi_agent_pf.estimate())
+
+    # Resample
+    if multi_agent_pf.neff() < multi_agent_pf.N / 2:
+        multi_agent_pf.resample()
+
+    return multi_agent_pf.estimate()
+
+
+def update_plot(agent, distances, embedding, historic):
     if distances is None:
         raise ValueError("Distance matrix should be defined at this point")
 
@@ -208,7 +169,7 @@ def update_plot(agent, distances, embedding, historic, direction_vector=None, ra
     # Set the axes labels and title (customize as needed)
     ax.set_xlabel('X-axis')
     ax.set_ylabel('Y-axis')
-    ax.set_title('MDS Scatter Plot')
+    ax.set_title('Particle Filter Plot')
 
     # Set the axes limits (customize as needed)
     ax.set_xlim(-600, 600)
@@ -222,34 +183,15 @@ def update_plot(agent, distances, embedding, historic, direction_vector=None, ra
     plt.scatter(embedding[agent, 0], embedding[agent, 1], c='blue')
 
     for i, point in enumerate(reversed(historic)):
-        ax.add_patch(
-            plt.Circle(
-                point,
-                30 * 1 + 10,
-                color='r',
-                fill=False,
-                alpha=0.5 / (i + 1),
-                )
-        )
+        plt.scatter(point[0], point[1], color="r", alpha=0.5 / (i + 1))
 
-    # if direction_vector is not None:
-    #     # Plot the direction vector (from agent of interest)
-    #     plt.quiver(
-    #         *historic[-1], direction_vector[0] * 10, direction_vector[1] * 10,
-    #         angles='xy', scale_units='xy', scale=1, color='r', label='Direction vector'
-    #     )
-    #
-    #     # Compute the angle between the direction vector and the x-axis
-    #     angle = np.arctan2(direction_vector[1], direction_vector[0])
-    #
-    #     if rab_measurements is not None:
-    #         # Plot the range and bearing relative to the agent of interest direction
-    #         for i, (r, b) in enumerate(rab_measurements):
-    #             plt.quiver(
-    #                 *historic[-1], r * np.cos(b + angle), r * np.sin(b + angle),
-    #                 angles='xy', scale_units='xy', scale=1, color='g', alpha=0.5,
-    #                 label=f'Agent {i + 1}'
-    #             )
+    if historic:
+        # Smoothing of direction
+        direction_vector = find_direction_vector_from_position_history(historic) * 10
+        direction_vector = generate_weighted_vector(add_direction(direction_vector))
+
+    # Plot direction from current embedding of agent
+    # plt.arrow()
 
     # Redraw the canvas
     canvas.draw()
@@ -297,9 +239,6 @@ def callback(data, args):
     if last_update is None:
         raise ValueError("Update table should be created at this point")
 
-    # TODO: create uncertainty system, uncertainty increase on measurements received a long time ago,
-    #       but also, when updated, choose the measurement with the least uncertainty
-
     if isinstance(data, Distance):
         self_idx = args[0] - ord('A')
         last_update[self_idx] = 0  # TODO: not sure that it should be updated this way
@@ -334,35 +273,36 @@ def create_matrix(n: int):
         raise ValueError("Couldn't create distance matrix and/or certainty matrix")
 
 
-def compute_measurement_uncertainty(certainty):
-    matrix = certainty + certainty.T
-
-    # Compute mean certainty for each agent distances (each row or column)
-    certainty = np.mean(matrix, axis=0)
-
-    return (100 - certainty) / 100  # (uncertainty factor)
-
-
-def compute_time_uncertainty(time, speed, error):
-    return time * speed + error
+@dataclasses.dataclass
+class Config:
+    n_particles: int
+    agents_speed: float
+    sensor_std_err: float
+    dt: float
+    last_time: datetime.now()
 
 
 def listener():
     global distance_matrix, certainty_matrix, last_update, running
 
     # Parse arguments
-    ros_launch_param = sys.argv[1]
+    agent_id = sys.argv[1]
 
     # Parse arguments
-    self_id = ord(ros_launch_param[2])
+    self_id = ord(agent_id[2])
     n_robots = int(sys.argv[2])
 
-    if sys.argv[3] != "Z":
-        beacons = [ord(beacon) - ord("A") for beacon in sys.argv[3].split(",")]
-    else:
-        beacons = None
-
     create_matrix(n_robots)
+
+    config = Config(
+        n_particles=5000,
+        agents_speed=30,
+        sensor_std_err=30,
+        dt=0.5,
+        last_time=datetime.now()
+    )
+
+    multi_agent_pf = MultiAgentParticleFilter(n_robots, config.n_particles)
 
     if distance_matrix is None or certainty_matrix is None:
         raise ValueError(
@@ -370,21 +310,18 @@ def listener():
 
     rospy.init_node('listener', anonymous=True)
 
-    rospy.Subscriber(f'/{ros_launch_param}/distances', Distances, callback, (self_id,))
-    rospy.Subscriber(f'/{ros_launch_param}/distance', Distance, callback, (self_id,))
-    pub = rospy.Publisher(f'/{ros_launch_param}/range_and_bearing', RangeAndBearing, queue_size=10)
-    statistics_pub = rospy.Publisher(f'/{ros_launch_param}/positions', Statistics, queue_size=10)
+    rospy.Subscriber(f'/{agent_id}/distances', Distances, callback, (self_id,))
+    rospy.Subscriber(f'/{agent_id}/distance', Distance, callback, (self_id,))
+    pub = rospy.Publisher(f'/{agent_id}/range_and_bearing', RangeAndBearing, queue_size=10)
+    statistics_pub = rospy.Publisher(f'/{agent_id}/positions', Statistics, queue_size=10)
 
-    data = []
     historic = []
 
     # Save previous values
-    previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
     previous_estimation = compute_positions(
         (distance_matrix + distance_matrix.T),
-        certainty_matrix,
-        previous_estimation,
-        beacons=beacons
+        multi_agent_pf,
+        config=config
     )  # Current estimation of the positions
 
     count = 0
@@ -403,36 +340,20 @@ def listener():
             clock.tick(iteration_rate)  # Limit frames per second
             continue
 
-        # Smoothing of distance
-        # TODO: use new_dm to use regression on distance matrix
-        new_dm = distance_matrix + distance_matrix.T
-        # new_dm = build_distance_matrix(n_robots)
-
         # Update the data in the plot
-        position_estimation = compute_positions(new_dm, certainty_matrix, previous_estimation, beacons=beacons)
+        new_dm = distance_matrix + distance_matrix.T
+        position_estimation = compute_positions(new_dm, multi_agent_pf, config=config)
 
         # Smoothing of agents positions
-        add_position(position_estimation)
-        corr_position = correlated_positions(n_robots)
+        # add_position(position_estimation)
+        # corr_position = correlated_positions(n_robots)
 
         # Update position historic
         historic.append(list(position_estimation[self_id - ord('A')]))
         historic = historic[-5:]
 
-        # Smoothing of direction
-        direction_vector = find_direction_vector_from_position_history(historic) * 10
-        direction_vector = generate_weighted_vector(add_direction(direction_vector))
-
-        _range_and_bearing = range_and_bearing(self_id - ord('A'), direction_vector, new_dm, historic, np.array(position_estimation))
-
-        # Compute direction of agent
-        bypass = False
-        if count % (iteration_rate * 0.5) == 0 or bypass:
-            msg = generate_msg(_range_and_bearing)
-            pub.publish(msg)
-
         # Update the plot
-        update_plot(self_id - ord('A'), new_dm, previous_estimation, historic, direction_vector, _range_and_bearing)
+        update_plot(self_id - ord('A'), new_dm, previous_estimation, historic)
 
         # Save current estimation
         previous_estimation = np.copy(position_estimation)
@@ -441,7 +362,7 @@ def listener():
         statistics_msg = Statistics()
         statistics_msg.header.stamp = rospy.Time.from_sec(datetime.now().timestamp())
         # print(statistics_msg.header.stamp)
-        statistics_msg.header.frame_id = f"agent_{ros_launch_param}"
+        statistics_msg.header.frame_id = f"agent_{agent_id}"
 
         for i, position in enumerate(position_estimation):
             # print(i)
@@ -464,28 +385,6 @@ def listener():
         # Tick the update clock
         clock.tick(iteration_rate)  # Limit to X frames per second
         count += 1
-
-
-def generate_msg(rab_measurements):
-    msg = RangeAndBearing()
-
-    attraction_vector = compute_attraction_vector(rab_measurements)
-
-    msg.x = attraction_vector[0]
-    msg.y = attraction_vector[1]
-
-    return msg
-
-
-def compute_attraction_vector(rab_measurements, alpha=1):
-    # print(rab_measurements)
-
-    accumulator = np.array([0., 0.])
-
-    for measurement in rab_measurements:
-        accumulator += np.array([alpha / (1 + measurement[0]), measurement[1] % (2 * math.pi)])
-
-    return accumulator[0], accumulator[1] % (2 * math.pi)
 
 
 if __name__ == '__main__':

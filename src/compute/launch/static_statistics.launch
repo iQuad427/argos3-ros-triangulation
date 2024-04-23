@@ -1,8 +1,8 @@
 <launch>
     <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
     <arg name="output_dir" value="/home/quentin/Dev/argos3-ros-triangulation/src/compute/output/experiments/static" />
-    <arg name="output_file" value="drop_0.99_err_0.1_batch_5" />
-    <arg name="n" default="5" />
+    <arg name="output_file" value="drop_0.98_err_0.3_batch_1" />
+    <arg name="n" default="4" />
     <arg name="a" default="fbA" />
     <arg name="b" default="fbB" />
     <arg name="c" default="fbC" />
@@ -10,7 +10,7 @@
     <arg name="e" default="fbE" />
     <arg name="beacons" default="Z" />
 
-    <node pkg="compute" type="statistics.py" name="statistics" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg a)" launch-prefix="$(arg venv)" ></node>
+    <node pkg="compute" type="statistics.py" name="statisticsA" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg a)" launch-prefix="$(arg venv)" ></node>
     <node pkg="compute" type="area.py" name="areaA" output="screen" cwd="node" args="$(arg a) $(arg n) $(arg beacons)" launch-prefix="$(arg venv)"></node>
 <!--     <node pkg="compute" type="area.py" name="areaB" output="screen" cwd="node" args="$(arg b) $(arg n) $(arg beacons)"></node> -->
 <!--     <node pkg="compute" type="area.py" name="areaC" output="screen" cwd="node" args="$(arg c) $(arg n) $(arg beacons)"></node> -->

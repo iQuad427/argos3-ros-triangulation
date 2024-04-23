@@ -8,7 +8,7 @@
         <system threads="0" />
         <experiment length="0"
                     ticks_per_second="10"
-                    random_seed="172" />
+                    random_seed="124" />
     </framework>
 
     <!-- *************** -->
@@ -28,11 +28,11 @@
                 <!-- Range and Bearing sensors -->
                 <range_and_bearing implementation="medium"
                                    medium="rab"
-                                   noise_std_dev="0.1"
-                                   packet_drop_prob="0.99"
+                                   noise_std_dev="0.3"
+                                   packet_drop_prob="0.5"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="0" size="1000" num_robots="4" />
+            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="4" />
         </walk_controller>
     </controllers>
 
@@ -63,19 +63,19 @@
         </box>
 
         <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1.8,1.8,0" />
+            <body orientation="234,0,0" position="-1.8,1.8,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="-1.8,-1.8,0" />
+            <body orientation="288,0,0" position="-1.8,-1.8,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.8,-1.8,0" />
+            <body orientation="169,0,0" position="1.8,-1.8,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
-            <body orientation="0,0,0" position="1.8,1.8,0" />
+            <body orientation="81,0,0" position="1.8,1.8,0" />
             <controller config="fdc" />
         </foot-bot>
     </arena>
