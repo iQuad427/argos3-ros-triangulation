@@ -295,10 +295,10 @@ def listener():
     create_matrix(n_robots)
 
     config = Config(
-        n_particles=5000,
+        n_particles=10000,
         agents_speed=30,
-        sensor_std_err=30,
-        dt=0.5,
+        sensor_std_err=15,
+        dt=0.1,
         last_time=datetime.now()
     )
 

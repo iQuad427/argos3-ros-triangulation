@@ -3,6 +3,7 @@
 
 #include <argos3/core/simulator/loop_functions.h>
 #include <argos3/plugins/robots/foot-bot/simulator/footbot_entity.h>
+#include <argos3/plugins/simulator/visualizations/qt-opengl/qtopengl_user_functions.h>
 
 #include <iostream>
 #include <vector>
@@ -16,6 +17,7 @@
 #include <tri_msgs/Agent.h>
 #include <tri_msgs/Odometry.h>
 #include <tri_msgs/Statistics.h>
+#include <simulation_utils/Manage.h>
 
 
 
@@ -50,11 +52,14 @@ public:
 
     virtual void PostStep();
 
+    virtual bool IsExperimentFinished();
+
     // TODO: post positions of each robot to a ROS Topic
 
     /* ROS related methods */
     virtual void InitROS();
     virtual void ControlStepROS();
+    static void CallbackROS(const simulation_utils::Manage::ConstPtr& msg);
 
 private:
 
@@ -63,9 +68,11 @@ private:
     int m_nRobots;
 
     static int count;
+    static bool stop;
 
     /* ROS Publisher */
     ros::Publisher m_positionPublisher;
+    ros::Subscriber m_manageSubscriber;
 
     ros::Publisher m_matrixPublisher;
     tri_msgs::Agent m_matrixMessage;

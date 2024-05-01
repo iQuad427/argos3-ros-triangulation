@@ -98,11 +98,13 @@ if __name__ == '__main__':
     # Seed 5 : 172
 
     limit = 300
-    flip_test = False
     file_directory = f"../output/experiments/static"
 
-    for error in [0.1, 0.3]:
-        for drop in tqdm([0.00, 0.50, 0.90, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99]):
+    errors = [0.1]
+    drops = [0.00, 0.50, 0.90, 0.95, 0.96, 0.97, 0.98, 0.985]
+
+    for error in errors:
+        for drop in tqdm(drops):
             # Plot the Mean Square Error of the positions
             mean_square_error = []
             time = np.arange(0, limit) / 5
@@ -124,17 +126,6 @@ if __name__ == '__main__':
                 for est, sim in file_reader.make_numpy():
                     mse = np.mean(np.square(est - sim))
 
-                    if flip_test:
-                        # Create a third array that is est with all Y values flipped
-                        flipped_estimation = np.array([[position[0], -position[1]] for position in est])
-
-                        # Rotate and translate the flipped estimation
-                        flipped_estimation = rotate_and_translate(sim, flipped_estimation)
-
-                        # Compare the flipped MSE
-                        flipped_mse = np.mean(np.square(flipped_estimation - sim))
-                        mse = min(mse, flipped_mse)
-
                     mses.append(mse)
 
                 # If MSEs is shorter than limit, add last value to fill up
@@ -153,19 +144,14 @@ if __name__ == '__main__':
 
             # Plot the Mean Square Error
             label = f"Drop rate: {drop:0.2f}" if len(str(drop)) <= len(f"{drop:0.2f}") else f"Drop rate: {drop:0.3f}"
-            label_err = f", err: {error}"
+            label_err = f", err: {error}" if len(errors) > 1 else ""
             plt.plot(time, mean_square_error[:limit], label=label+label_err)
-
-            # Plot red dots where mean square error is zero
-            # for i, mse in enumerate(mean_square_error):
-            #     if mse == 0:
-            #         plt.scatter(file_reader.time[i], 0, c='r')
 
     # Axis labels
     plt.xlabel("Time (s)")
     plt.ylabel("Mean Square Error (cm²)")
 
-    plt.title(f"MSE of Positions: {file_directory.split('/')[-2]}, {file_directory.split('/')[-1]}" + ", no_invert" if flip_test else "")
+    plt.title(f"MSE of Positions: {file_directory.split('/')[-2]}, {file_directory.split('/')[-1]}")
     plt.legend()
-    plt.savefig(f"../output/mse_drop_{file_directory.split('/')[-1]}" + "_no_invert" if flip_test else "" + ".png", dpi=300)
+    plt.savefig(f"../output/mse_drop_{file_directory.split('/')[-1]}.png", dpi=300)
     plt.show()

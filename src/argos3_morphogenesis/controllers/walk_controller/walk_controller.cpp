@@ -9,9 +9,8 @@
 /****************************************/
 
 //float CFootBotWalk::m_distance;
-//float CFootBotWalk::m_angle;
-//bool CFootBotWalk::m_direction;
-bool CFootBotWalk::m_go;
+bool CFootBotWalk::stop = false;
+bool CFootBotWalk::start = false;
 
 CFootBotWalk::CFootBotWalk() :
         m_pcWheels(nullptr),
@@ -58,10 +57,13 @@ void CFootBotWalk::InitROS() {
     // Register the publisher to the ROS master
     m_distancePublisher = self_pub_node.advertise<tri_msgs::Distance>(selfPublisherName.str(), 10);
     m_distancesPublisher = pub_node.advertise<tri_msgs::Distances>(publisherName.str(), 10);
-    m_directionSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
+    m_directionSubscriber = sub_node.subscribe("simulation_manage_command", 10, CallbackROS);
 }
 
-void CFootBotWalk::CallbackROS(const morpho_msgs::RangeAndBearing::ConstPtr& msg) {}
+void CFootBotWalk::CallbackROS(const simulation_utils::Manage::ConstPtr& msg) {
+    stop = msg->stop;
+    start = !msg->stop;
+}
 
 void CFootBotWalk::ControlStepROS() {
     if (ros::ok()) {
@@ -218,6 +220,12 @@ void CFootBotWalk::ControlStep() {
     m_pcRangeAndBearingActuator->SetData(cMessage);
 
     /** Obstacle Avoidance Vector Computation */
+
+    if (!start) {
+        m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
+        ControlStepROS();
+        return;
+    }
 
     /* Random Movement */
     /* Get readings from proximity sensor */

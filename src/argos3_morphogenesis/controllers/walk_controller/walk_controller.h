@@ -46,6 +46,7 @@
 #include <morpho_msgs/RangeAndBearing.h>
 #include <tri_msgs/Distance.h>
 #include <tri_msgs/Distances.h>
+#include <simulation_utils/Manage.h>
 
 #define STOP 0
 #define MOVE 1
@@ -121,7 +122,7 @@ public:
 
     /* ROS related methods */
     virtual void InitROS();
-    static void CallbackROS(const morpho_msgs::RangeAndBearing::ConstPtr& msg);
+    static void CallbackROS(const simulation_utils::Manage::ConstPtr& msg);
     virtual void ControlStepROS();
 
 private:
@@ -152,7 +153,8 @@ private:
 //    static float m_distance;
 //    static float m_angle;
 //    static bool m_direction;
-    static bool m_go;
+    static bool stop;
+    static bool start;
 
     float m_previousAngle;
     float m_previousDirection;

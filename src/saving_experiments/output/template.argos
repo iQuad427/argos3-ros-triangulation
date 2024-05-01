@@ -8,14 +8,14 @@
         <system threads="0" />
         <experiment length="0"
                     ticks_per_second="10"
-                    random_seed="124" />
+                    random_seed="&seed&" />
     </framework>
 
     <!-- *************** -->
     <!-- * Controllers * -->
     <!-- *************** -->
     <controllers>
-        <walk_controller id="fdc" library="devel/lib/libwalk_controller">
+        <walk_controller id="fdc" library="/home/quentin/Dev/argos3-ros-triangulation/devel/lib/libwalk_controller.so">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -29,7 +29,7 @@
                 <range_and_bearing implementation="medium"
                                    medium="rab"
                                    noise_std_dev="0.3"
-                                   packet_drop_prob="0.95"
+                                   packet_drop_prob="&drop_rate&"
                                    show_rays="true" />
             </sensors>
             <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="4" />
@@ -39,7 +39,7 @@
     <!-- ****************** -->
     <!-- * Loop functions * -->
     <!-- ****************** -->
-    <loop_functions library="devel/lib/libstatistics_loop_functions"
+    <loop_functions library="/home/quentin/Dev/argos3-ros-triangulation/devel/lib/libstatistics_loop_functions.so"
                     label="statistics_loop_functions"
                     num_robots="4" />
 
@@ -91,14 +91,15 @@
     <!-- * Media * -->
     <!-- ********* -->
     <media>
-        <range_and_bearing id="rab" check_occlusions="true" />
+        <range_and_bearing id="rab" check_occlusions="false" />
     </media>
 
     <!-- ****************** -->
     <!-- * Visualization * -->
     <!-- ****************** -->
+<!--    <visualization />-->
     <visualization>
-        <qt-opengl>
+        <qt-opengl autoplay="true">
             <camera>
                 <placement idx="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />
             </camera>

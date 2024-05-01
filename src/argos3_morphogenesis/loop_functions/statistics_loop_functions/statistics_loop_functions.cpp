@@ -17,12 +17,18 @@ static const Real MIN_DISTANCE = 0.05f;
 static const Real MIN_DISTANCE_SQUARED = MIN_DISTANCE * MIN_DISTANCE;
 
 int CStatisticsLoopFunctions::count;
+bool CStatisticsLoopFunctions::stop = false;
 
 CStatisticsLoopFunctions::CStatisticsLoopFunctions() :
         m_nRobots(10) {}
 
 /****************************************/
 /****************************************/
+
+void CStatisticsLoopFunctions::CallbackROS(const simulation_utils::Manage::ConstPtr& msg) {
+    std::cout << "Callback : " << msg->stop << std::endl;
+    stop = msg->stop;
+}
 
 void CStatisticsLoopFunctions::InitROS() {
     //get e-puck ID
@@ -49,6 +55,9 @@ void CStatisticsLoopFunctions::InitROS() {
     // Register the publisher to the ROS master
     m_matrixPublisher = node.advertise<tri_msgs::Agent>(distancePublisherName.str(), 10);
     m_positionPublisher = node.advertise<tri_msgs::Statistics>(positionPublisherName.str(), 10);
+
+    // Register the subscriber to the ROS master
+    m_manageSubscriber = node.subscribe("simulation_manage_command", 10, CallbackROS);
 
     // Prefill Messages
     m_matrixMessage.header.frame_id = distancePublisherName.str();
@@ -163,7 +172,6 @@ void CStatisticsLoopFunctions::Reset() {
 //    for (int i = 0; i < m_nRobots; ++i) {
 //        m_distanceMatrix[i].clear();
 //    }
-
     count = 0;
 }
 
@@ -197,6 +205,13 @@ void CStatisticsLoopFunctions::PostStep() {
 //    }
     ControlStepROS();
     count++;
+}
+
+bool CStatisticsLoopFunctions::IsExperimentFinished() {
+    if (stop) {
+        CQTOpenGLUserFunctions().GetMainWindow().close();
+    }
+    return stop;
 }
 
 /****************************************/
