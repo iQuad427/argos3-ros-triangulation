@@ -2,7 +2,7 @@
 <launch>
     <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
 
-    <arg name="input_dir" default="/home/quentin/Dev/argos3-ros-triangulation/src/saving_experiments/output/fast_data" />
+    <arg name="input_dir" default="/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/fast_data" />
     <arg name="input_file" default="drop_0.90_seed_42_batch_1" />
     <arg name="simulation" default="False" />
 
@@ -12,5 +12,5 @@
 
     <arg name="a" default="fbA" />
 
-    <node pkg="saving_experiments" type="fast_simulation.py" name="sensor_measurements" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file)" ></node>
+    <node pkg="simulation_experiments" type="main_fast.py" name="sensor_measurements" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file)" ></node>
 </launch>

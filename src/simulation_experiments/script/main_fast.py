@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 import datetime
+import math
 import signal
 import sys
+import time
 from collections import defaultdict
 
 import rospy
@@ -26,7 +28,6 @@ def callback(msg):
 
 def signal_handler(sig, frame):
     global stop
-    print('You pressed Ctrl+C!')
     stop = True
 
 
@@ -126,13 +127,10 @@ def talker():
     output_dir = sys.argv[3]
     output_file = sys.argv[4]
 
-    rospy.init_node('simulation_sensor_measurement', anonymous=True)
+    rospy.init_node('simulation_streamer', anonymous=True)
 
     # Subscribe to the manager command (to stop the node when needed)
     rospy.Subscriber('simulation/manage_command', Manage, callback)
-
-    # while not start and not stop:
-    #     pass
 
     if not simulation:
         print("Started listening to ROS")
@@ -160,18 +158,13 @@ def talker():
                 if len(distances) == 0 or len(positions) == 0:
                     continue
 
-                print(step)
-                print(len(distances), len(positions))
-
                 positions_line = unparse_positions(positions[0])
 
                 for distance in distances:
                     distances_line = unparse_distances(distance)
-                    f.write(f"{step}&{distances_line}&{positions_line}\n")
+                    f.write(f"{step/10}&{distances_line}&{positions_line}\n")
     else:
         print("Started reading from file")
-
-        start_time = datetime.datetime.now()
 
         # Publish the read distances
         agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=1000)
@@ -181,20 +174,33 @@ def talker():
             # Read file, line by line and output only if timestamp is reached
             lines = f.readlines()
 
+        time.sleep(1)
+
+        print("Started publishing")
+
+        start_time = datetime.datetime.now()
+
+        min_step = math.inf
         for line in tqdm.tqdm(lines):
             timestep, distances, positions = line.split("&")
+            min_step = min(min_step, float(timestep))
+            timestep = float(timestep) - min_step
+
+            if stop:
+                break
 
             distances_msg, status_1 = parse_distances(distances)
             positions_msg, status_2 = parse_positions(positions)
             if not status_1 and not status_2:
                 # While not the right moment, do nothing
-                while (datetime.datetime.now() - start_time).total_seconds() < float(timestep):
+                while (datetime.datetime.now() - start_time).total_seconds() < timestep:
                     pass
+
+                distances_msg.timestep = int(timestep * 10)
+                positions_msg.timestep = int(timestep * 10)
 
                 agent_publisher.publish(distances_msg)
                 simulation_publisher.publish(positions_msg)
-            if stop:
-                break
 
 
 if __name__ == '__main__':

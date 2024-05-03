@@ -23,7 +23,7 @@ class Position:
 @dataclasses.dataclass
 class Memory:
     positions: List[Position]
-    timestamp: datetime.datetime
+    timestamp: float
 
     def __repr__(self):
         buffer = f"{self.timestamp}&"
@@ -47,11 +47,11 @@ def callback(msg):
 # Add handler for SIGINT
 def signal_handler(sig, frame):
     global stop
-    stop = False
+    stop = True
 
 
 def positions_callback(positions, args):
-    timestamp = datetime.datetime.fromtimestamp(positions.header.stamp.to_sec())
+    timestamp = positions.timestep / 10
 
     storage = args[0]
 
@@ -72,7 +72,7 @@ def positions_callback(positions, args):
         iterate = True
 
     # Keep only the first and last one (use reference to list)
-    storage = storage[-1:] + storage[:0]
+    storage = storage[:0] + storage[-1:]
 
 
 def listener():
@@ -93,7 +93,7 @@ def listener():
     agent_id = sys.argv[4]
     print(f'Agent ID: {agent_id}')
 
-    rospy.init_node('statistics', anonymous=True)
+    rospy.init_node('statistics_computation', anonymous=True)
 
     # Subscribe to the manager command (to stop the node when needed)
     rospy.Subscriber('simulation/manage_command', Manage, callback)
@@ -110,10 +110,10 @@ def listener():
                 estimation = estimated_positions[-1]
 
                 start = estimated_positions[0].timestamp
-                now = (estimation.timestamp - start).total_seconds()
+                now = (estimation.timestamp - start)
 
-                f.write(f"estim={now}={estimation}\n")
-                f.write(f"truth={now}={ground_truth}\n")
+                f.write(f"estim={now:0.2f}={estimation}\n")
+                f.write(f"truth={now:0.2f}={ground_truth}\n")
 
                 iterate = False
 

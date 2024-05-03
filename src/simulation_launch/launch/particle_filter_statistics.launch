@@ -1,0 +1,38 @@
+<launch>
+    <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
+
+    <arg name="input_dir" default="" />
+    <arg name="input_file" default="" />
+    <arg name="simulation" default="True" />
+
+    <arg name="output_dir" default="" />
+    <arg name="output_file" default="" />
+
+    <arg name="experiment_duration" default="10" />
+    <arg name="random_seed" default="42" />
+
+    <node pkg="simulation_utils" type="experiment_manager.py" name="experiment_manager" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg experiment_duration)" ></node>
+
+    <!-- TODO: put sensor reading in another ROS package -->
+    <node pkg="simulation_experiments" type="main_fast.py" name="experiment_streamer" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg input_dir) $(arg input_file)" ></node>
+
+    <arg name="n" default="4" />
+    <arg name="b" default="fbB" />
+    <arg name="beacons" default="Z" />
+
+    <!-- Experiment -->
+    <arg name="init" default="False" />
+    <arg name="offset" default="False" />
+    <arg name="certainty" default="False" />
+
+    <!-- Particle Filter -->
+    <arg name="n_particles" default="5000" />
+    <arg name="agents_speed" default="30" />
+    <arg name="sensor_std_err" default="10" />
+    <arg name="dt" default="0.1" />
+
+    <!-- fbB computation and statistics -->
+    <node pkg="simulation_compute" type="main_particle_filter.py" name="particle_filter" output="screen" cwd="node" args="$(arg b) $(arg n) $(arg random_seed) $(arg init) $(arg offset) $(arg certainty) $(arg n_particles) $(arg agents_speed) $(arg sensor_std_err) $(arg dt)" launch-prefix="$(arg venv)"></node>
+    <node pkg="simulation_statistics" type="main.py" name="statistics" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg b)" launch-prefix="$(arg venv)" ></node>
+
+</launch>

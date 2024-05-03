@@ -1,0 +1,33 @@
+<launch>
+    <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
+
+    <arg name="input_dir" default="" />
+    <arg name="input_file" default="" />
+    <arg name="simulation" default="True" />
+
+    <arg name="output_dir" default="" />
+    <arg name="output_file" default="" />
+
+    <arg name="experiment_duration" default="10" />
+    <arg name="experiment_start" default="0" />
+    <arg name="random_seed" default="42" />
+
+    <arg name="n" default="4" />
+    <arg name="a" default="fbA" />
+    <arg name="beacons" default="Z" />
+
+    <!-- Experiment -->
+    <arg name="init" default="False" />
+    <arg name="offset" default="False" />
+    <arg name="certainty" default="False" />
+
+    <!-- fbA computation and statistics -->
+    <node pkg="simulation_compute" type="main_mds.py" name="mds" output="screen" cwd="node" args="$(arg a) $(arg n) $(arg random_seed) $(arg init) $(arg offset) $(arg certainty) $(arg beacons)" launch-prefix="$(arg venv)"></node>
+    <node pkg="simulation_statistics" type="main.py" name="statistics" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg a)" launch-prefix="$(arg venv)" ></node>
+
+    <!-- Experiment -->
+    <node pkg="simulation_experiments" type="main_fast.py" name="experiment_streamer" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file)" ></node>
+
+    <!-- Experiment Manager -->
+    <node pkg="simulation_utils" type="experiment_manager.py" name="experiment_manager" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg experiment_duration) $(arg experiment_start)" ></node>
+</launch>

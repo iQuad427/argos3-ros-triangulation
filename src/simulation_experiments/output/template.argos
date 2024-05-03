@@ -28,7 +28,7 @@
                 <!-- Range and Bearing sensors -->
                 <range_and_bearing implementation="medium"
                                    medium="rab"
-                                   noise_std_dev="0.3"
+                                   noise_std_dev="&sensor_error&"
                                    packet_drop_prob="&drop_rate&"
                                    show_rays="true" />
             </sensors>
