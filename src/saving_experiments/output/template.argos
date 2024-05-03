@@ -6,7 +6,7 @@
     <!-- ************************* -->
     <framework>
         <system threads="0" />
-        <experiment length="0"
+        <experiment length="&duration&"
                     ticks_per_second="10"
                     random_seed="&seed&" />
     </framework>
@@ -15,7 +15,7 @@
     <!-- * Controllers * -->
     <!-- *************** -->
     <controllers>
-        <walk_controller id="fdc" library="/home/quentin/Dev/argos3-ros-triangulation/devel/lib/libwalk_controller.so">
+        <simulation_controller id="fdc" library="/home/quentin/Dev/argos3-ros-triangulation/devel/lib/libsimulation_controller.so">
             <actuators>
                 <!-- Differential steering actuators -->
                 <differential_steering implementation="default" />
@@ -32,8 +32,8 @@
                                    packet_drop_prob="&drop_rate&"
                                    show_rays="true" />
             </sensors>
-            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="4" />
-        </walk_controller>
+            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="4" start_time="&start_time&" />
+        </simulation_controller>
     </controllers>
 
     <!-- ****************** -->
@@ -97,13 +97,13 @@
     <!-- ****************** -->
     <!-- * Visualization * -->
     <!-- ****************** -->
-<!--    <visualization />-->
-    <visualization>
-        <qt-opengl autoplay="true">
-            <camera>
-                <placement idx="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />
-            </camera>
-        </qt-opengl>
-    </visualization>
+    <visualization />
+<!--    <visualization>-->
+<!--        <qt-opengl autoplay="true">-->
+<!--            <camera>-->
+<!--                <placement idx="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />-->
+<!--            </camera>-->
+<!--        </qt-opengl>-->
+<!--    </visualization>-->
 
 </argos-configuration>

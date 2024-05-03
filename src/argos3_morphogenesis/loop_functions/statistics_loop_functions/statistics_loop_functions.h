@@ -15,8 +15,8 @@
 #include <tri_msgs/Item.h>
 #include <tri_msgs/Matrix.h>
 #include <tri_msgs/Agent.h>
-#include <tri_msgs/Odometry.h>
-#include <tri_msgs/Statistics.h>
+#include <simulation_utils/Odometry.h>
+#include <simulation_utils/Positions.h>
 #include <simulation_utils/Manage.h>
 
 

@@ -54,7 +54,7 @@ add_message_files(
    Distance.msg
    Distances.msg
    Odometry.msg
-   Statistics.msg
+   Positions.msg
 )
 
 ## Generate services in the 'srv' folder

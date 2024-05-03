@@ -16,7 +16,7 @@ static const Real MIN_DISTANCE = 0.05f;
 /* Convenience constant to avoid calculating the square root in PostStep() */
 static const Real MIN_DISTANCE_SQUARED = MIN_DISTANCE * MIN_DISTANCE;
 
-int CStatisticsLoopFunctions::count;
+int CStatisticsLoopFunctions::count = 0;
 bool CStatisticsLoopFunctions::stop = false;
 
 CStatisticsLoopFunctions::CStatisticsLoopFunctions() :
@@ -54,10 +54,10 @@ void CStatisticsLoopFunctions::InitROS() {
 
     // Register the publisher to the ROS master
     m_matrixPublisher = node.advertise<tri_msgs::Agent>(distancePublisherName.str(), 10);
-    m_positionPublisher = node.advertise<tri_msgs::Statistics>(positionPublisherName.str(), 10);
+    m_positionPublisher = node.advertise<simulation_utils::Positions>(positionPublisherName.str(), 1000);
 
     // Register the subscriber to the ROS master
-    m_manageSubscriber = node.subscribe("simulation_manage_command", 10, CallbackROS);
+    m_manageSubscriber = node.subscribe("/simulation/manage_command", 10, CallbackROS);
 
     // Prefill Messages
     m_matrixMessage.header.frame_id = distancePublisherName.str();
@@ -110,12 +110,11 @@ void CStatisticsLoopFunctions::ControlStepROS() {
         CSpace::TMapPerType &tFBMap = GetSpace().GetEntitiesByType("foot-bot");
         /* Go through them */
 
-        tri_msgs::Statistics statistics;
-        statistics.header.stamp = ros::Time::now();
-        statistics.header.frame_id = "simulation";
+        simulation_utils::Positions positions;
+        positions.timestep = count;
 
         for (CSpace::TMapPerType::iterator it = tFBMap.begin(); it != tFBMap.end(); ++it) {
-            tri_msgs::Odometry odometry;
+            simulation_utils::Odometry odometry;
 
             /* Create a pointer to the current foot-bot */
             CFootBotEntity *pcFB = any_cast<CFootBotEntity *>(it->second);
@@ -136,10 +135,10 @@ void CStatisticsLoopFunctions::ControlStepROS() {
             odometry.c = orientation.GetZ();
             odometry.d = orientation.GetW();
 
-            statistics.odometry_data.push_back(odometry);
+            positions.odometry_data.push_back(odometry);
         }
 
-        m_positionPublisher.publish(statistics);
+        m_positionPublisher.publish(positions);
 
         //update ROS status
         ros::spinOnce();
@@ -153,8 +152,8 @@ void CStatisticsLoopFunctions::Init(TConfigurationNode &t_tree) {
     GetNodeAttributeOrDefault(t_tree, "num_robots", m_nRobots, m_nRobots);
 
     // Set the number of rows and columns in the matrix
-    int numRows = m_nRobots; // number of rows
-    int numCols = m_nRobots; // number of columns
+//    int numRows = m_nRobots; // number of rows
+//    int numCols = m_nRobots; // number of columns
 
     count = 0;
 

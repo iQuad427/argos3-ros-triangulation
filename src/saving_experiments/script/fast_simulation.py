@@ -129,8 +129,8 @@ def talker():
     # Subscribe to the manager command (to stop the node when needed)
     rospy.Subscriber('simulation/manage_command', Manage, callback)
 
-    while not start and not stop:
-        pass
+    # while not start and not stop:
+    #     pass
 
     if not simulation:
         print("Started listening to ROS")
@@ -167,8 +167,8 @@ def talker():
         start_time = datetime.datetime.now()
 
         # Publish the read distances
-        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=10)
-        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=10)
+        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=10000)
+        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=1000)
 
         with open(f"{output_dir}/{output_file}", "r") as f:
             # Read file, line by line and output only if timestamp is reached

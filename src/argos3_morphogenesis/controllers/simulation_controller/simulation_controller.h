@@ -41,11 +41,8 @@
 
 /* ROS dependencies */
 #include "ros/ros.h"
-#include <morpho_msgs/Direction.h>
-#include <morpho_msgs/Angle.h>
-#include <morpho_msgs/RangeAndBearing.h>
-#include <tri_msgs/Distance.h>
-#include <tri_msgs/Distances.h>
+#include <simulation_utils/Distance.h>
+#include <simulation_utils/Distances.h>
 #include <simulation_utils/Manage.h>
 
 #define STOP 0
@@ -144,27 +141,15 @@ private:
     /* ROS Publisher */
     ros::Publisher m_distancePublisher;
     ros::Publisher m_distancesPublisher;
-    ros::Subscriber m_directionSubscriber;
+    ros::Subscriber m_manageSubscriber;
 
-    tri_msgs::Distance m_distanceMessage;
-    tri_msgs::Distances m_distancesMessage;
-    morpho_msgs::Angle m_directionMessage;
+    simulation_utils::Distances m_distancesMessage;
 
-//    static float m_distance;
-//    static float m_angle;
-//    static bool m_direction;
     static bool stop;
     static bool start;
 
-    float m_previousAngle;
-    float m_previousDirection;
-    float m_previousDistance;
-
-    bool m_invert;
-    int m_counter;
-
-    // Movement State Machine
-    int m_state;
+    static int count;
+    int start_time;
 
     CDegrees m_cAlpha;
     Real m_fDelta;

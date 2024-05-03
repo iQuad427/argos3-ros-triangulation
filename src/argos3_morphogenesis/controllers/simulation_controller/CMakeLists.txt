@@ -1,0 +1,6 @@
+add_library(simulation_controller MODULE simulation_controller.h simulation_controller.cpp)
+
+target_link_libraries(simulation_controller
+  argos3core_simulator
+  argos3plugin_simulator_footbot
+  argos3plugin_simulator_genericrobot)

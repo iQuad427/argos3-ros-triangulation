@@ -1,5 +1,5 @@
 /* Include the controller definition */
-#include "walk_controller.h"
+#include "simulation_controller.h"
 /* Function definitions for XML parsing */
 #include <argos3/core/utility/configuration/argos_configuration.h>
 /* 2D vector definition */
@@ -7,6 +7,8 @@
 
 /****************************************/
 /****************************************/
+
+int CFootBotWalk::count = 0;
 
 bool CFootBotWalk::stop = false;
 bool CFootBotWalk::start = false;
@@ -21,6 +23,7 @@ CFootBotWalk::CFootBotWalk() :
         m_fDelta(0.5f),
         m_fWheelVelocity(2.5f),
         m_nRobots(10),
+        start_time(10),
         m_cGoStraightAngleRange(-ToRadians(m_cAlpha),
                                 ToRadians(m_cAlpha)) {}
 
@@ -51,12 +54,11 @@ void CFootBotWalk::InitROS() {
 
     publisherName << name.str() << "/distances";
     selfPublisherName << name.str() << "/distance";
-    subscriberName << name.str() << "/range_and_bearing";
+    subscriberName << "/simulation/manage_command";
 
     // Register the publisher to the ROS master
-    m_distancePublisher = self_pub_node.advertise<tri_msgs::Distance>(selfPublisherName.str(), 10);
-    m_distancesPublisher = pub_node.advertise<tri_msgs::Distances>(publisherName.str(), 10);
-    m_directionSubscriber = sub_node.subscribe("simulation_manage_command", 10, CallbackROS);
+    m_distancesPublisher = pub_node.advertise<simulation_utils::Distances>(publisherName.str(), 1000);
+    m_manageSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
 }
 
 void CFootBotWalk::CallbackROS(const simulation_utils::Manage::ConstPtr& msg) {
@@ -68,18 +70,30 @@ void CFootBotWalk::ControlStepROS() {
     if (ros::ok()) {
         // Publish the message
         if (m_distancesMessage.robot_id != 0) {
+            m_distancesMessage.timestep = count;
             m_distancesPublisher.publish(m_distancesMessage);
 
             // Clean message for next iteration
             m_distancesMessage.robot_id = 0;
             m_distancesMessage.ranges.clear();
         }
-        if (m_distanceMessage.other_robot_id != 0) {
-            m_distancePublisher.publish(m_distanceMessage);
 
-            // Clean the message for next iteration
-            m_distanceMessage.other_robot_id = 0;
+        // Publish the distance table as a distances message
+        simulation_utils::Distances distances;
+        simulation_utils::Distance item;
+
+        distances.robot_id = (int) GetId()[2];
+        distances.timestep = count;
+
+        for (int j = 0; j < m_nRobots; ++j) {
+            item.other_robot_id = 'A' + j;
+            item.distance = (int) m_distanceTable[j].first;
+            item.certainty = (int) ((float) m_distanceTable[j].second * 100) ;
+
+            distances.ranges.push_back(item);
         }
+
+        m_distancesPublisher.publish(distances);
 
         //update ROS status
         ros::spinOnce();
@@ -106,14 +120,12 @@ void CFootBotWalk::Init(TConfigurationNode &t_node) {
     GetNodeAttributeOrDefault(t_node, "size", m_unBandWidth, m_unBandWidth);
 
     GetNodeAttributeOrDefault(t_node, "num_robots", m_nRobots, m_nRobots);
-
-    // State machine
-    m_state = MOVE;
-    m_invert = false;
-    m_counter = 0;
+    GetNodeAttributeOrDefault(t_node, "start_time", start_time, start_time);
 
     // Fill the distance table with ones
     m_distanceTable.resize(m_nRobots, DistanceFactorPair(0, 1));
+
+    count = 0;
 
     InitROS();
 }
@@ -125,10 +137,7 @@ void CFootBotWalk::Reset() {
     // Fill the table with ones
     m_distanceTable.resize(m_nRobots, DistanceFactorPair(0, 1));
 
-    // State machine
-    m_state = MOVE;
-    m_invert = false;
-    m_counter = 0;
+    count = 0;
 }
 
 /****************************************/
@@ -167,16 +176,12 @@ void CFootBotWalk::ControlStep() {
         if (initiator_id != '\0' && responder_id != '\0') {
             // TODO: could also want to replace by average of previous and current to even out the result
             m_distanceTable[(int) responder_id - 'A'] = std::make_pair(tPackets[un_SelectedPacket].Range, 1);
-
-            m_distanceMessage.other_robot_id = (int) responder_id;
-            m_distanceMessage.distance = tPackets[un_SelectedPacket].Range;
-            m_distanceMessage.certainty = 100;
         }
 
         float range;
         float certainty;
 
-        tri_msgs::Distance item;
+        simulation_utils::Distance item;
 
         m_distancesMessage.robot_id = (int) responder_id;
 
@@ -220,7 +225,7 @@ void CFootBotWalk::ControlStep() {
 
     /** Obstacle Avoidance Vector Computation */
 
-    if (!start) {
+    if (count < start_time) {
         m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
         ControlStepROS();
         return;
@@ -253,103 +258,8 @@ void CFootBotWalk::ControlStep() {
         }
     }
 
-    // TODO: GetAttractionVector
-//    CCI_EPuckRangeAndBearingSensor::TPackets sRabPackets = m_pcRabMessageBuffer.GetMessages();
-//    CCI_EPuckRangeAndBearingSensor::TPackets::iterator it;
-//    CVector2 sRabVectorSum(0,CRadians::ZERO);
-//
-//    for (it = sRabPackets.begin(); it != sRabPackets.end(); it++) {
-//        if (((*it)->Data[0] != (UInt32) EpuckDAO::GetRobotIdentifier()) && ((*it)->Range > 0.0f)) {
-//            sRabVectorSum += CVector2((f_alpha_parameter / (Real) (1 + (*it)->Range)), (*it)->Bearing.SignedNormalize());
-//        }
-//    }
-//
-//
-//    CCI_EPuckRangeAndBearingSensor::SReceivedPacket cRaBReading;
-//    cRaBReading.Range = sRabVectorSum.Length();
-//    cRaBReading.Bearing = sRabVectorSum.Angle().SignedNormalize();
-//
-//    return cRaBReading;
-
-    // TODO: ComputeWheelsVelocityFromVector
-//    CVector2 c_vector_to_follow;
-//    Real fLeftVelocity = 0;
-//    Real fRightVelocity = 0;
-//    CRange<CRadians> cLeftHemisphere(CRadians::ZERO, CRadians::PI);
-//    CRange<CRadians> cRightHemisphere(CRadians::PI, CRadians::TWO_PI);
-//    CRadians cNormalizedVectorToFollow = c_vector_to_follow.Angle().UnsignedNormalize();
-//    // Compute relative wheel velocity
-//    // if (c_vector_to_follow.GetX() != 0 || c_vector_to_follow.GetY() != 0) {
-//    // 	if (cLeftHemisphere.WithinMinBoundExcludedMaxBoundExcluded(cNormalizedVectorToFollow)) {
-//    // 		fRightVelocity = 1;
-//    // 		fLeftVelocity = Max<Real>(-0.5f, Cos(cNormalizedVectorToFollow));
-//    // 	} else {
-//    // 		fRightVelocity = Max<Real>(-0.5f, Cos(cNormalizedVectorToFollow));
-//    // 		fLeftVelocity = 1;
-//    // 	}
-//    // }
-//    if (c_vector_to_follow.GetX() != 0 || c_vector_to_follow.GetY() != 0)
-//    {
-//        if (cLeftHemisphere.WithinMinBoundExcludedMaxBoundExcluded(cNormalizedVectorToFollow))
-//        {
-//            fRightVelocity = 1;
-//            fLeftVelocity = Cos(cNormalizedVectorToFollow);
-//        }
-//        else
-//        {
-//            fRightVelocity = Cos(cNormalizedVectorToFollow);
-//            fLeftVelocity = 1;
-//        }
-//    }
-//
-//    // Transform relative velocity according to max velocity allowed
-//    Real fVelocityFactor = m_pcRobotDAO->GetMaxVelocity() / Max<Real>(std::abs(fRightVelocity), std::abs(fLeftVelocity));
-//    CVector2 cWheelsVelocity = CVector2(fVelocityFactor * fLeftVelocity, fVelocityFactor * fRightVelocity);
-//
-//    return cWheelsVelocity;
-
-    // TODO: Aggregation behaviour
-//    CVector2 sRabVector(0, CRadians::ZERO);
-//    CVector2 sProxVector(0, CRadians::ZERO);
-//    CVector2 sResultVector(0, CRadians::ZERO);
-//    CCI_RVRRangeAndBearingSensor::SReceivedPacket cRabReading = m_pcRobotDAO->GetAttractionVectorToNeighbors(m_unAttractionParameter);
-//
-//    if (cRabReading.Range > 0.0f) {
-//        sRabVector = CVector2(cRabReading.Range, cRabReading.Bearing);
-//    }
-//
-//    sProxVector = CVector2(m_pcRobotDAO->GetProximityReading().Value, m_pcRobotDAO->GetProximityReading().Angle);
-//    sResultVector = sRabVector - 5 * sProxVector;
-//
-//    if (sResultVector.Length() < 0.1)
-//    {
-//        sResultVector = CVector2(1, CRadians::ZERO);
-//    }
-//
-//    m_pcRobotDAO->SetWheelsVelocity(ComputeWheelsVelocityFromVector(sResultVector));
-
-    // TODO: Repulsion behaviour
-//    CVector2 sRabVector(0, CRadians::ZERO);
-//    CVector2 sProxVector(0, CRadians::ZERO);
-//    CVector2 sResultVector(0, CRadians::ZERO);
-//    CCI_RVRRangeAndBearingSensor::SReceivedPacket cRabReading = m_pcRobotDAO->GetAttractionVectorToNeighbors(m_unRepulsionParameter);
-//
-//    if (cRabReading.Range > 0.0f) {
-//        sRabVector = CVector2(cRabReading.Range, cRabReading.Bearing);
-//    }
-//
-//
-//    sProxVector = CVector2(m_pcRobotDAO->GetProximityReading().Value, m_pcRobotDAO->GetProximityReading().Angle);
-//    sResultVector = -sRabVector - 5 * sProxVector;
-//
-//    if (sResultVector.Length() < 0.1)
-//    {
-//        sResultVector = CVector2(1, CRadians::ZERO);
-//    }
-//
-//    m_pcRobotDAO->SetWheelsVelocity(ComputeWheelsVelocityFromVector(sResultVector));
-
     ControlStepROS();
+    count++;
 }
 
 /****************************************/
@@ -365,4 +275,4 @@ void CFootBotWalk::ControlStep() {
  * controller class to instantiate.
  * See also the configuration files for an example of how this is used.
  */
-REGISTER_CONTROLLER(CFootBotWalk, "walk_controller")
+REGISTER_CONTROLLER(CFootBotWalk, "simulation_controller")
