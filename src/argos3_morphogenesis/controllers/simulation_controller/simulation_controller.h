@@ -148,7 +148,7 @@ private:
     static bool stop;
     static bool start;
 
-    static int count;
+    int count;
     int start_time;
 
     CDegrees m_cAlpha;

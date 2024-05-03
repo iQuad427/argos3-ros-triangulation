@@ -70,6 +70,8 @@ private:
     static int count;
     static bool stop;
 
+    int start_time;
+
     /* ROS Publisher */
     ros::Publisher m_positionPublisher;
     ros::Subscriber m_manageSubscriber;

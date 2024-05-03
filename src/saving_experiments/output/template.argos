@@ -41,7 +41,8 @@
     <!-- ****************** -->
     <loop_functions library="/home/quentin/Dev/argos3-ros-triangulation/devel/lib/libstatistics_loop_functions.so"
                     label="statistics_loop_functions"
-                    num_robots="4" />
+                    num_robots="4"
+                    start_time="&start_time&" />
 
 
     <!-- *********************** -->

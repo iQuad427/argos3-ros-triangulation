@@ -2,6 +2,7 @@
 import datetime
 import signal
 import sys
+from collections import defaultdict
 
 import rospy
 import tqdm
@@ -25,6 +26,7 @@ def callback(msg):
 
 def signal_handler(sig, frame):
     global stop
+    print('You pressed Ctrl+C!')
     stop = True
 
 
@@ -135,39 +137,44 @@ def talker():
     if not simulation:
         print("Started listening to ROS")
 
-        historical_data = []
-        simulation_data = []
+        historical_data = defaultdict(list)
+        simulation_data = defaultdict(list)
 
         # TODO: put together distance.s in the topic distances
-        rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data.append(data))
-        rospy.Subscriber(f'/{agent_id}/distance', Distance, lambda data: historical_data.append(make_distances(data, agent_id[2])))
+        rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestep].append(data))
+        rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestep].append(data))
 
-        rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data.append(data))
+        while not rospy.is_shutdown() and not stop:
+            pass
 
-        start_time = datetime.datetime.now()
+        print("Started writing to file")
+
+        # Start time is smallest timestep in the simulation data
+        start_time = min(simulation_data.keys())
 
         with open(f"{output_dir}/{output_file}", "w+") as f:
-            while not rospy.is_shutdown() and start and not stop:
-                if len(historical_data) == 0 or len(simulation_data) == 0:
+            for step in range(start_time, max(historical_data.keys())):
+                distances = historical_data[step]
+                positions = simulation_data[step]
+
+                if len(distances) == 0 or len(positions) == 0:
                     continue
 
-                # TODO: might want to ensure that all distances are sent in the right order (pop at index 0)
-                distances = historical_data.pop()
-                positions = simulation_data.pop()
+                print(step)
+                print(len(distances), len(positions))
 
-                distances_line = unparse_distances(distances)
-                positions_line = unparse_positions(positions)
+                positions_line = unparse_positions(positions[0])
 
-                timestep = (datetime.datetime.now() - start_time).total_seconds()
-
-                f.write(f"{timestep}&{distances_line}&{positions_line}\n")
+                for distance in distances:
+                    distances_line = unparse_distances(distance)
+                    f.write(f"{step}&{distances_line}&{positions_line}\n")
     else:
         print("Started reading from file")
 
         start_time = datetime.datetime.now()
 
         # Publish the read distances
-        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=10000)
+        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=1000)
         simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=1000)
 
         with open(f"{output_dir}/{output_file}", "r") as f:

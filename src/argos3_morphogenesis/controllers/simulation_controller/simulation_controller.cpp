@@ -8,8 +8,6 @@
 /****************************************/
 /****************************************/
 
-int CFootBotWalk::count = 0;
-
 bool CFootBotWalk::stop = false;
 bool CFootBotWalk::start = false;
 
@@ -68,15 +66,6 @@ void CFootBotWalk::CallbackROS(const simulation_utils::Manage::ConstPtr& msg) {
 
 void CFootBotWalk::ControlStepROS() {
     if (ros::ok()) {
-        // Publish the message
-        if (m_distancesMessage.robot_id != 0) {
-            m_distancesMessage.timestep = count;
-            m_distancesPublisher.publish(m_distancesMessage);
-
-            // Clean message for next iteration
-            m_distancesMessage.robot_id = 0;
-            m_distancesMessage.ranges.clear();
-        }
 
         // Publish the distance table as a distances message
         simulation_utils::Distances distances;
@@ -94,6 +83,16 @@ void CFootBotWalk::ControlStepROS() {
         }
 
         m_distancesPublisher.publish(distances);
+
+        // Publish the message
+        if (m_distancesMessage.robot_id != 0) {
+            m_distancesMessage.timestep = count;
+            m_distancesPublisher.publish(m_distancesMessage);
+
+            // Clean message for next iteration
+            m_distancesMessage.robot_id = 0;
+            m_distancesMessage.ranges.clear();
+        }
 
         //update ROS status
         ros::spinOnce();
@@ -225,9 +224,9 @@ void CFootBotWalk::ControlStep() {
 
     /** Obstacle Avoidance Vector Computation */
 
+    count++;
     if (count < start_time) {
         m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
-        ControlStepROS();
         return;
     }
 
@@ -259,7 +258,6 @@ void CFootBotWalk::ControlStep() {
     }
 
     ControlStepROS();
-    count++;
 }
 
 /****************************************/

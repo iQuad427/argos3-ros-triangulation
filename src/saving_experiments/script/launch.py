@@ -1,9 +1,12 @@
-import os
 import subprocess
+import signal
 import time
+import rospy
+
+from simulation_utils.msg import Manage
 
 
-def run_command(prior, commands):
+def run_command(prior, commands, manager):
     main_process = subprocess.Popen(prior, shell=True)
 
     time.sleep(5)
@@ -15,10 +18,17 @@ def run_command(prior, commands):
 
         processes.append(process)
 
+    print("Waiting for processes to finish...")
+
     # Wait for subprocess to finish and kill prior
     [process.wait() for process in processes]
+
+    print("Processes finished!")
+
     # Send sigint to main_process
-    main_process.send_signal(signal.SIGINT)
+    manager.publish(Manage(stop=True))
+
+    print("Waiting for main process to finish...")
 
     main_process.wait()
 
@@ -36,6 +46,9 @@ def main():
 
     experiment = "save_fast_experiment_data"
     simulation = False
+
+    rospy.init_node('simulation_manager', anonymous=True)
+    publisher = rospy.Publisher('simulation/manage_command', Manage, queue_size=10)
 
     count = 0
     for drop_rate in drops:
@@ -76,7 +89,8 @@ def main():
                 + f" random_seed:={seed}",
                 [
                     f"argos3 -c /home/quentin/Dev/argos3-ros-triangulation/src/saving_experiments/output/tmp.argos",
-                ]
+                ],
+                manager=publisher
             )
 
 

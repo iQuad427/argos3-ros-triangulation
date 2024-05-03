@@ -20,6 +20,7 @@ int CStatisticsLoopFunctions::count = 0;
 bool CStatisticsLoopFunctions::stop = false;
 
 CStatisticsLoopFunctions::CStatisticsLoopFunctions() :
+        start_time(10),
         m_nRobots(10) {}
 
 /****************************************/
@@ -150,6 +151,7 @@ void CStatisticsLoopFunctions::ControlStepROS() {
 
 void CStatisticsLoopFunctions::Init(TConfigurationNode &t_tree) {
     GetNodeAttributeOrDefault(t_tree, "num_robots", m_nRobots, m_nRobots);
+    GetNodeAttributeOrDefault(t_tree, "start_time", start_time, start_time);
 
     // Set the number of rows and columns in the matrix
 //    int numRows = m_nRobots; // number of rows
@@ -202,8 +204,12 @@ void CStatisticsLoopFunctions::PostStep() {
 //            m_distanceMatrix[(int) ((it_1->first)[2] - 'A')][(int) ((it_2->first)[2] - 'A')] = std::make_pair(distance, 1);
 //        }
 //    }
-    ControlStepROS();
+
     count++;
+    if (count < start_time) {
+        return;
+    }
+    ControlStepROS();
 }
 
 bool CStatisticsLoopFunctions::IsExperimentFinished() {

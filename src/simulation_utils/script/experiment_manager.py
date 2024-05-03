@@ -4,7 +4,7 @@ import time
 import rospy
 import sys
 
-from ros_utils.msg import Manage
+from simulation_utils.msg import Manage
 
 
 compute = True
@@ -21,7 +21,7 @@ def manager():
     experiment_start = sys.argv[2]
 
     rospy.init_node('simulation_manager', anonymous=True)
-    publisher = rospy.Publisher('simulation_manage_command', Manage, queue_size=10)
+    publisher = rospy.Publisher('simulation/manage_command', Manage, queue_size=10)
 
     start = time.time()
 
