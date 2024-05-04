@@ -167,16 +167,16 @@ def talker():
         print("Started reading from file")
 
         # Publish the read distances
-        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=1000)
-        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=1000)
+        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=2000)
+        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=2000)
 
         with open(f"{output_dir}/{output_file}", "r") as f:
             # Read file, line by line and output only if timestamp is reached
             lines = f.readlines()
 
-        time.sleep(1)
+        time.sleep(3)
 
-        print("Started publishing")
+        print("START STREAMING")
 
         start_time = datetime.datetime.now()
 
@@ -193,14 +193,16 @@ def talker():
             positions_msg, status_2 = parse_positions(positions)
             if not status_1 and not status_2:
                 # While not the right moment, do nothing
-                while (datetime.datetime.now() - start_time).total_seconds() < timestep:
-                    pass
+                # while (datetime.datetime.now() - start_time).total_seconds() < timestep:
+                #     pass
 
                 distances_msg.timestep = int(timestep * 10)
                 positions_msg.timestep = int(timestep * 10)
 
                 agent_publisher.publish(distances_msg)
                 simulation_publisher.publish(positions_msg)
+
+        print("STOP STREAMING")
 
 
 if __name__ == '__main__':
