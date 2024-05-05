@@ -20,6 +20,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   tri_msgs
+  simulation_utils
   morpho_msgs
 )
 

@@ -126,7 +126,7 @@ def main():
             arguments += f" offset:=\"{config.offset}\""
             arguments += f" certainty:=\"{config.certainty}\""
 
-            run_command("roslaunch simulation_launch mds_statistics.launch" + arguments)
+            run_command("roslaunch simulation_launch mds_fast_statistics.launch" + arguments)
 
     print("PHASE 2: PARTICLE FILTER")
 
@@ -195,7 +195,7 @@ def main():
             arguments += f" sensor_std_err:=\"{sensor_std_err}\""
             arguments += f" dt:=\"{dt}\""
 
-            run_command("roslaunch simulation_launch particle_filter_statistics.launch" + arguments)
+            run_command("roslaunch simulation_launch particle_filter_fast_statistics.launch" + arguments)
 
     print("FINISHED")
 

@@ -1,4 +1,4 @@
 
 int8 robot_id
-int64 timestep
+float32 timestamp
 Distance[] ranges

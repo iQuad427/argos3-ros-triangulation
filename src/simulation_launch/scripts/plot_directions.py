@@ -1,10 +1,116 @@
+#!/usr/bin/python3
+
 import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils import rotate_and_translate, FileReader
+from utils import rotate_and_translate, euler_from_quaternion
+from simulation_utils.msg import Positions, Odometry
+
+
+def parse_positions(line: str) -> (Positions, bool):
+    msg = Positions()
+    msg.odometry_data = []
+
+    faulty_frame = False
+
+    infos = line.split("#")
+
+    if len(infos) > 1:
+        for info in infos:
+            agent_id, positions, orientations = info.split(":")
+            x, y, z = [float(i) for i in positions.split(",")]
+            a, b, c, d = [float(j) for j in orientations.split(",")]
+
+            msg.odometry_data.append(
+                Odometry(
+                    id=ord(agent_id),
+                    x=x, y=y, z=z,
+                    a=a, b=b, c=c, d=d
+                )
+            )
+    else:
+        faulty_frame = True
+
+    return msg, faulty_frame
+
+
+def unparse_positions(msg: Positions) -> str:
+    line = f""
+    for position in msg.odometry_data:
+        if line:
+            line += "#"
+        line += f"{chr(position.id)}:{position.x},{position.y},{position.z}:{position.a},{position.b},{position.c},{position.d}"
+    return f"{line}"
+
+
+class FileReader:
+    """
+    Read a file like the following :
+    type=relative_time=time&id,x,y#id,x,y#id,x,y#id,x,y ...
+
+    And allow for doing some operations on it.
+    """
+
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.file_name = file_path.split("/")[-1]
+        self._read_file(file_path)
+
+    def _read_file(self, file_path):
+        with open(file_path, "r") as f:
+            lines = f.readlines()
+
+        data = []
+        time_values = []
+        # By stem of 2 because we have 2 lines for each time
+        for _j in range(0, len(lines), 2):
+            _, timestamp, estimation = lines[_j].split("\n")[0].split("=")
+            _, _, simulation = lines[_j + 1].split("\n")[0].split("=")
+
+            time_values.append(float(timestamp))
+            time_step = [
+                parse_positions(estimation)[0],
+                parse_positions(simulation)[0]
+            ]
+
+            data.append(time_step)
+
+        self.data = data
+        self.time = time_values
+
+    def get_positions_and_directions(self):
+        """
+        :return: positions over time in numpy array format
+        """
+        data = []
+
+        # for estimations, simulations in self.data:
+        #     data.append([
+        #         np.array([
+        #             [
+        #                 position.x, position.y,
+        #                 # euler_from_quaternion(position.a, position.b, position.c, position.d)[2]
+        #             ] for position in estimations.odometry_data
+        #         ]),
+        #         np.array([
+        #             [
+        #                 position.x, position.y,
+        #                 # euler_from_quaternion(position.a, position.b, position.c, position.d)[2]
+        #             ] for position in simulations.odometry_data
+        #         ]),
+        #     ])
+
+        for step in self.data:
+            estimation = np.array([[position.x, position.y] for position in step[0].odometry_data])
+            simulation = np.array([[position.x, position.y] for position in step[1].odometry_data])
+
+            data.append([estimation, simulation])
+
+        return data
+
 
 if __name__ == '__main__':
     # Seed 1 : 124
@@ -15,26 +121,29 @@ if __name__ == '__main__':
 
     # seeds = [124]
     seeds = [124, 42, 427, 97, 172]
-    drops = [0.98]
+    drops = [0.90]
     # drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
     errors = [0.0]
     # errors = [0.00, 0.05, 0.10, 0.15]
 
     limit = (100, 300)  # 300 => 60 seconds
     flip_test = True
-    file_directory = f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/drop_rate"
+    file_directory = f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/directions"
+
     iterations = 20
+    duration = 120
+    start = 0
 
     mds = False
     pf = True
 
-    subplot = False
+    subplot = True
 
-    init = [True, False]
+    init = [False]
     offset = [False]
-    certainty = [True, False]
+    certainty = [False]
 
-    batch_plot = 0
+    batch_plot = 1
     plot_grid = False  # To plot the last estimation of a given batch
 
     time = np.arange(0, limit[1]) / 5
@@ -70,10 +179,6 @@ if __name__ == '__main__':
 
                     method_experiments.append(output_dir)
 
-    # method_experiments = [
-    #     "static_convergence_mds",
-    # ]
-
     config_experiments = []
     for drop in drops:
         for error in errors:
@@ -94,7 +199,7 @@ if __name__ == '__main__':
 
             # Read the file
             for batch, seed in enumerate(seeds):
-                file_name = f"drop_{drop:0.2f}_seed_{seed}_error_{error}_duration_{150}_start_{30}"
+                file_name = f"drop_{drop:0.2f}_iteration_{iterations}_seed_{seed}_error_{error}_duration_{duration}_start_{start}"
 
                 try:
                     file_reader = FileReader(f"{directory}/{file_name}")
@@ -108,7 +213,11 @@ if __name__ == '__main__':
                 print("[0] File :", file_reader.file_path)
                 print("[0] File name :", file_reader.file_name)
 
-                for est, sim in file_reader.make_numpy():
+                for est, sim in file_reader.get_positions_and_directions():
+                    est = est[:, 0:2]
+                    sim = sim[:, 0:2]
+
+                    # TODO: add the rotation of the direction estimation to compare to the simulation
                     est, flip = rotate_and_translate(sim, est)
                     mse = np.mean(np.square(est - sim))
 
@@ -166,7 +275,7 @@ if __name__ == '__main__':
         for i, p in enumerate(last_simulation):
             plt.text(p[0] + 1, p[1] + 1, i, c="b")
 
-        plt.title(f"Wrongly Estimated Positions (4 Static Agents, MDS)")
+        plt.title(f"Wrongly Estimated Positions (4 Moving Agents, {'MDS' if mds else 'PF'})")
 
         # Axis labels
         plt.xlabel("X-axis (cm)")
@@ -176,10 +285,10 @@ if __name__ == '__main__':
         plt.axis('equal')
 
         plt.legend()
-        plt.savefig(f"./plot/mse_static_positions" + ".png", dpi=300)
+        plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/mse_static_positions.png", dpi=300)
     else:
         # Title
-        plt.title(f"MSE of Positions")
+        plt.title(f"MSE of Positions (4 Moving Agents, {'MDS' if mds else 'PF'})")
 
         # Axis labels
         plt.xlabel("Time (s)")
@@ -189,6 +298,6 @@ if __name__ == '__main__':
         plt.legend()
 
         # Simply save with a timestamp
-        plt.savefig(f"../output/plot/plot_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}" + ".png", dpi=300)
+        plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/plot_mse_positions.png", dpi=300)
 
     plt.show()

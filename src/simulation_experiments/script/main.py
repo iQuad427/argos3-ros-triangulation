@@ -132,7 +132,7 @@ def talker():
     output_dir = sys.argv[3]
     output_file = sys.argv[4]
 
-    iteration_rate = sys.argv[5]
+    iteration_rate = int(sys.argv[5])
 
     # TODO: add iteration per second of the simulation to take into account when computing
     #       timestamps of simulation messages
@@ -157,16 +157,16 @@ def talker():
         print("Started writing to file")
 
         # Start time is smallest timestep in the simulation data
-        start_time = min(simulation_data.keys())
+        start_time = int(min(simulation_data.keys()))
 
         with open(f"{output_dir}/{output_file}", "w+") as f:
-            for step in range(start_time, max(historical_data.keys())):
+            for step in range(start_time, int(max(historical_data.keys()))):
                 distances = historical_data[step]
                 positions = simulation_data[step]
 
                 for distance in distances:
                     distance_line = unparse_distances(distance)
-                    f.write(f"{step/iteration_rate}&distances&{distance_line}&\n")
+                    f.write(f"{step/iteration_rate}&distances&{distance_line}\n")
 
                 for position in positions:
                     position_line = unparse_positions(position)

@@ -2,18 +2,17 @@
 <launch>
     <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
 
-    <arg name="input_dir" default="/home/quentin/Dev/argos3-ros-triangulation/src/saving_experiments/output/raw_data" />
-    <arg name="input_file" default="drop_0.90_seed_42_batch_1" />
-    <arg name="simulation" default="False" />
+    <arg name="input_dir" default="/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/simulation" />
+    <arg name="input_file" default="drop_0.90_iteration_20_seed_124_error_0.0_duration_120_start_0" />
+    <arg name="simulation" default="True" />
 
     <arg name="experiment_duration" default="10" />
     <arg name="experiment_start" default="5" />
-    <arg name="random_seed" default="124" />
     <arg name="iteration_rate" default="10" />
 
-    <node pkg="simulation_utils" type="experiment_manager.py" name="experiment_manager" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg experiment_duration) $(arg experiment_start)" ></node>
+    <arg name="random_seed" default="124" />
 
     <arg name="a" default="fbA" />
 
-    <node pkg="saving_experiments" type="main.py" name="sensor_measurements" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file) $(arg iteration_rate)" ></node>
+    <node pkg="simulation_experiments" type="main.py" name="sensor_measurements" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file) $(arg iteration_rate)" ></node>
 </launch>

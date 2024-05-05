@@ -40,13 +40,13 @@ def main():
     # Seed 4 : 97
     # Seed 5 : 172
 
-    input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/drop_rate"
-    # seeds = ["124", "42", "427", "97", "172"]
-    seeds = ["124"]
-    # drops = [0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
-    drops = [0.90]
-    # errors = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
-    errors = [0.00]
+    input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/simulation"
+    seeds = ["124", "42", "427", "97", "172"]
+    # seeds = ["124"]
+    drops = [0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
+    # drops = [0.90]
+    errors = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+    # errors = [0.00]
 
     experiment_duration = 120
     experiment_start = 0
@@ -70,7 +70,7 @@ def main():
     count = 0
     for drop_rate, seed, error in experiments:
         count += 1
-        input_file = f"drop_{drop_rate:0.2f}_seed_{seed}_error_{error}_duration_{experiment_duration}_start_{experiment_start}"
+        input_file = f"drop_{drop_rate:0.2f}_iteration_{iteration_rate}_seed_{seed}_error_{error}_duration_{experiment_duration}_start_{experiment_start}"
 
         # If input file already exists, skip
         if input_file in os.listdir(input_directory):

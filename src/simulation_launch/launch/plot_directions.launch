@@ -1,0 +1,5 @@
+<launch>
+    <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
+
+    <node pkg="simulation_launch" type="plot_directions.py" name="experiment_plot" output="screen" cwd="node" launch-prefix="$(arg venv)" args="" ></node>
+</launch>

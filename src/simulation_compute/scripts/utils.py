@@ -2,11 +2,10 @@ import math
 
 import numpy as np
 import scipy.stats
-from numpy.linalg import svd
+from numpy.linalg import svd, norm
 from numpy.random import randn, uniform
 
-from src.simulation_compute.scripts.direction import generate_weighted_vector, \
-    find_direction_vector_from_position_history
+from direction import generate_weighted_vector, find_direction_vector_from_position_history
 
 
 def find_rotation_matrix(X, Y, flipped=False):
@@ -233,7 +232,7 @@ def add_direction(distance_direction, historic_direction, particle_direction):
     return distance_direction_history, historic_direction_history, particle_direction_history
 
 
-def compute_angle_from_distances(agent, plot, ref_distances, distances):
+def compute_angle_from_distances(plot, ref_distances, distances):
     """
     Generate a Direction message for the agent controller to head toward the right direction.
 
@@ -244,35 +243,48 @@ def compute_angle_from_distances(agent, plot, ref_distances, distances):
 
     :return: a Direction ROS message for the robot controller to adapt the direction of the robot
     """
-    agent_vector = np.array([plot[agent, 0], plot[agent, 1]])
+    agent_vector = np.array([plot[0, 0], plot[0, 1]])
     total_vector = np.array([0, 0])
     for i in range(len(distances)):
-        if i != agent:
-            direction = (agent_vector - np.array([plot[i, 0], plot[i, 1]]))
-            total_vector = total_vector + direction * (ref_distances[i] - distances[i])
+        direction = (agent_vector - np.array([plot[i, 0], plot[i, 1]]))
+        total_vector = total_vector - direction * (ref_distances[i] - distances[i])
 
     return total_vector
 
 
-def compute_direction(position_hist, distances_hist):
+def compute_direction(embedding_hist, positions_hist, distances_hist):
+    # embedding_hist = [np.array(embedding) for embedding in embedding_hist]
+    positions_hist = [np.array(positions) for positions in positions_hist]
+    # distances_hist = [np.array(distances) for distances in distances_hist]
+
     # 1. From relative distance evolution
-    distance_estimation = None
-    if all([distances.shape[1] >= 2 for distances in distances_hist]):
-        # Compute the difference of the first and the last distance
-        distances_diff = distances_hist[0][:, 0:2] - distances_hist[-1][:, 0:2]
-        # Compute the average direction from the differences
-        direction_vector = compute_angle_from_distances(0, position_hist[0], distances_hist[0][:, 0:2], distances_hist[-1][:, 0:2])
-        distance_estimation = direction_vector * 10
+    distance_estimation = np.array([0, 0])
+    # if len(embedding_hist) > 1 and len(distances_hist) > 1:
+    #     # Compute the average direction from the differences
+    #     direction_vector = compute_angle_from_distances(embedding_hist[-2], distances_hist[-2], distances_hist[-1])
+    #     distance_estimation = direction_vector
 
     # 2. From historic of estimated positions
-    historic_estimation = find_direction_vector_from_position_history(position_hist) * 10
+    historic_estimation = find_direction_vector_from_position_history(positions_hist)
 
     # 3. From the particle filter estimated positions and angles
-    particle_estimation = None
-    if all([position.shape[1] == 3 for position in position_hist]):
-        # Compute the average direction from angles in position history with decreasing weight
-        angles = np.array([position[:, 2] for position in position_hist])
-        particle_estimation = np.mean(np.array([np.cos(angles), np.sin(angles)])) * 10
+    particle_estimation = np.array([0, 0])
+    # if all([position.shape[0] == 3 for position in positions_hist]):
+    #     # Compute the average direction from angles in position history with decreasing weight
+    #     angles = np.array([position[2] for position in positions_hist])
+    #     particle_estimation = np.mean(np.array([np.cos(angles), np.sin(angles)]), axis=1)
+
+    # Normalize each vector if non zero norm
+    # if norm(distance_estimation) != 0:
+    #     distance_estimation /= norm(distance_estimation)
+    if norm(historic_estimation) != 0:
+        historic_estimation /= norm(historic_estimation)
+    # if norm(particle_estimation) != 0:
+    #     particle_estimation /= norm(particle_estimation)
+
+    # print(distance_estimation)
+    # print(historic_estimation)
+    # print(particle_estimation)
 
     dist_hist, hist_hist, part_hist = add_direction(
         distance_estimation,
@@ -285,4 +297,3 @@ def compute_direction(position_hist, distances_hist):
         generate_weighted_vector(hist_hist),
         generate_weighted_vector(part_hist)
     )
-
