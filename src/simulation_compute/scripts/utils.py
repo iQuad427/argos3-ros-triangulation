@@ -1,70 +1,12 @@
 import math
 
 import numpy as np
-from numpy.linalg import svd
-from sklearn.manifold import MDS
 import scipy.stats
-from matplotlib import pyplot as plt
-from numpy.linalg import norm
+from numpy.linalg import svd
 from numpy.random import randn, uniform
-from tqdm import tqdm
 
-
-
-def MDS_fitting(matrix):
-    mds = MDS(n_components=2, dissimilarity='precomputed', normalized_stress=False, metric=True)
-    mds_coors = mds.fit_transform(matrix)
-
-    return mds_coors
-
-
-def remove_uncertain_measurement(distances, certainty, threshold=0.5):
-    """
-    Remove uncertain measurements from the matrix of distances.
-
-    :param distances: Matrix of distances.
-    :param certainty: Certainty of each distance.
-    :param threshold: Threshold below which a measurement is considered uncertain.
-    :return: Matrix of distances without uncertain measurements. (replaced with -1)
-    """
-    # Create a copy of the matrix of distances
-    distances = distances.copy()
-
-    # Iterate over the matrix of distances
-    for i in range(distances.shape[0]):
-        for j in range(i, distances.shape[1]):
-            # If the certainty is below the threshold, replace the distance with -1
-            if i != j and certainty[i, j] < threshold:
-                distances[i, j] = -1
-
-    return distances
-
-
-def remove_uncertain_agents(distances, certainty, threshold=0.5):
-    """
-    Remove agents with uncertain measurements from the matrix of distances.
-
-    :param distances: Matrix of distances.
-    :param certainty: Certainty of each distance.
-    :param threshold: Threshold below which a measurement is considered uncertain.
-    :return: Matrix of distances without uncertain agents.
-    """
-    # Create a copy of the matrix of distances
-    distances_without_uncertainty = remove_uncertain_measurement(distances, certainty, threshold)
-
-    to_remove = []
-
-    # Iterate over the matrix of distances
-    for i in range(distances_without_uncertainty.shape[0]):
-        # If any distances for an agent are uncertain, replace the distances with -1
-        if np.any(distances_without_uncertainty[:, i] == -1):
-            to_remove.append(i)
-
-    # Remove the agents with uncertain measurements
-    distances_without_uncertainty = np.delete(distances_without_uncertainty, to_remove, axis=0)
-    distances_without_uncertainty = np.delete(distances_without_uncertainty, to_remove, axis=1)
-
-    return distances_without_uncertainty, to_remove
+from src.simulation_compute.scripts.direction import generate_weighted_vector, \
+    find_direction_vector_from_position_history
 
 
 def find_rotation_matrix(X, Y, flipped=False):
@@ -225,102 +167,6 @@ class MultiAgentParticleFilter:
         return [f.get_weights() for f in self.filters]
 
 
-def generate_spiral(num_points, num_turns, branch_spacing, rotation):
-    theta = np.linspace(0, num_turns * 2 * np.pi, num_points)
-    r = branch_spacing * theta / (2 * np.pi)
-    x = r * np.cos(theta + rotation)
-    y = r * np.sin(theta + rotation)
-    return x, y
-
-
-def run_pf(n, iters=20, sensor_std_err=10):
-    # For 4 agents
-    plt.figure()
-
-    multi_agent_pf = MultiAgentParticleFilter(4, n)
-    speed = 30
-
-    num_points = iters
-    num_turns = 1
-    branch_spacing = 100
-    rotations = [0, np.pi / 2, np.pi, 3 * np.pi / 2]  # Rotations for each spiral
-
-    # Create the next pauses of the agents as spirals rotated by 90 degrees
-    agents_pose = {
-        i: generate_spiral(num_points, num_turns, branch_spacing, rotation)
-        for i, rotation in enumerate(rotations)
-    }
-
-    steps_particles = []
-    steps_estimated_pose = []
-
-    for step in tqdm(range(iters)):
-        # Plot agents true pose
-        for i in range(4):
-            plt.scatter(agents_pose[i][0][step], agents_pose[i][1][step], label=f"Agent {i}", color='r', marker='+')
-
-        agents_true_pose = np.array([
-            [agents_pose[i][0][step], agents_pose[i][1][step], 0]
-            for i in range(4)
-        ])
-
-        # Predict
-        multi_agent_pf.predict(u=(0, speed), std=(6.28, 5))
-
-        # Z is the distance matrix of real agents
-        z = np.zeros((4, 4))
-        for j, agent in enumerate(agents_true_pose):
-            z[j] = np.linalg.norm(agents_true_pose[:, 0:2] - agent[0:2], axis=1) + (randn(4) * sensor_std_err)
-
-        # Update
-        multi_agent_pf.update(z, sensor_std_err, multi_agent_pf.estimate())
-
-        # Resample
-        if multi_agent_pf.neff() < n / 2:
-            multi_agent_pf.resample()
-
-        # Plot particles
-        particles = multi_agent_pf.get_particles()
-        colors = ['g', 'b', 'y', 'c']
-        # for j, p in enumerate(particles):
-        #     plt.scatter(p[:, 0], p[:, 1], color=colors[j], marker=',', s=1)
-
-        steps_particles.append(particles)
-
-        # Plot estimated pose
-        estimated_pose = multi_agent_pf.estimate()
-        # plt.scatter(estimated_pose[:, 0], estimated_pose[:, 1], color='b', marker='o')
-
-        steps_estimated_pose.append(estimated_pose)
-
-        # Move agents
-        # agents_true_pose[:, 0] += np.cos(agents_true_pose[:, 2]) * speed
-        # agents_true_pose[:, 1] += np.sin(agents_true_pose[:, 2]) * speed
-
-    # Plot particles
-    # steps_particles = np.array(steps_particles)
-    colors = ['g', 'b', 'y', 'c']
-    # for j in range(4):
-    #     plt.scatter(steps_particles[:, j, :, 0], steps_particles[:, j, :, 1], color=colors[j], marker=',', s=1)
-
-    # Plot estimated pose with increasing alpha
-    steps_estimated_pose = np.array(steps_estimated_pose)
-    for i in range(4):
-        for j in range(iters):
-            plt.scatter(steps_estimated_pose[j, i, 0], steps_estimated_pose[j, i, 1], color=colors[i], marker='o',
-                        alpha=(j + 1) / iters)
-
-    # Plot last estimated positions with index
-    for j, p in enumerate(steps_estimated_pose[-1]):
-        plt.text(p[0], p[1], str(j), fontsize=12)
-
-    # Plot last true positions with index
-    for j in range(4):
-        plt.text(agents_pose[j][0][-1], agents_pose[j][1][-1], str(j), fontsize=12)
-
-    plt.show()
-
-
 def euler_from_quaternion(x, y, z, w):
     """
     Convert a quaternion into euler angles (roll, pitch, yaw)
@@ -342,3 +188,101 @@ def euler_from_quaternion(x, y, z, w):
     yaw_z = math.atan2(t3, t4)
 
     return roll_x, pitch_y, yaw_z  # in radians
+
+
+def euler_to_quaternion(roll, pitch, yaw):
+    """
+    Convert euler angles to quaternion
+    roll is rotation around x in radians (counterclockwise)
+    pitch is rotation around y in radians (counterclockwise)
+    yaw is rotation around z in radians (counterclockwise)
+    """
+    cy = math.cos(yaw * 0.5)
+    sy = math.sin(yaw * 0.5)
+    cp = math.cos(pitch * 0.5)
+    sp = math.sin(pitch * 0.5)
+    cr = math.cos(roll * 0.5)
+    sr = math.sin(roll * 0.5)
+
+    w = cy * cp * cr + sy * sp * sr
+    x = cy * cp * sr - sy * sp * cr
+    y = sy * cp * sr + cy * sp * cr
+    z = sy * cp * cr - cy * sp * sr
+
+    return x, y, z, w
+
+
+distance_direction_history = []
+historic_direction_history = []
+particle_direction_history = []
+
+
+def add_direction(distance_direction, historic_direction, particle_direction):
+    global distance_direction_history, historic_direction_history, particle_direction_history
+
+    if distance_direction is not None:
+        distance_direction_history.insert(0, distance_direction)
+        distance_direction_history = distance_direction_history[:3]
+    if historic_direction is not None:
+        historic_direction_history.insert(0, historic_direction)
+        historic_direction_history = historic_direction_history[:3]
+    if particle_direction is not None:
+        particle_direction_history.insert(0, particle_direction)
+        particle_direction_history = particle_direction_history[:3]
+
+    return distance_direction_history, historic_direction_history, particle_direction_history
+
+
+def compute_angle_from_distances(agent, plot, ref_distances, distances):
+    """
+    Generate a Direction message for the agent controller to head toward the right direction.
+
+    :param agent: index of the considered agent in the distance table
+    :param plot: the plot to take as reference for angles between agents
+    :param ref_distances: previous known distances to reference agent
+    :param distances: current distances to reference agent
+
+    :return: a Direction ROS message for the robot controller to adapt the direction of the robot
+    """
+    agent_vector = np.array([plot[agent, 0], plot[agent, 1]])
+    total_vector = np.array([0, 0])
+    for i in range(len(distances)):
+        if i != agent:
+            direction = (agent_vector - np.array([plot[i, 0], plot[i, 1]]))
+            total_vector = total_vector + direction * (ref_distances[i] - distances[i])
+
+    return total_vector
+
+
+def compute_direction(position_hist, distances_hist):
+    # 1. From relative distance evolution
+    distance_estimation = None
+    if all([distances.shape[1] >= 2 for distances in distances_hist]):
+        # Compute the difference of the first and the last distance
+        distances_diff = distances_hist[0][:, 0:2] - distances_hist[-1][:, 0:2]
+        # Compute the average direction from the differences
+        direction_vector = compute_angle_from_distances(0, position_hist[0], distances_hist[0][:, 0:2], distances_hist[-1][:, 0:2])
+        distance_estimation = direction_vector * 10
+
+    # 2. From historic of estimated positions
+    historic_estimation = find_direction_vector_from_position_history(position_hist) * 10
+
+    # 3. From the particle filter estimated positions and angles
+    particle_estimation = None
+    if all([position.shape[1] == 3 for position in position_hist]):
+        # Compute the average direction from angles in position history with decreasing weight
+        angles = np.array([position[:, 2] for position in position_hist])
+        particle_estimation = np.mean(np.array([np.cos(angles), np.sin(angles)])) * 10
+
+    dist_hist, hist_hist, part_hist = add_direction(
+        distance_estimation,
+        historic_estimation,
+        particle_estimation
+    )
+
+    return (
+        generate_weighted_vector(dist_hist),
+        generate_weighted_vector(hist_hist),
+        generate_weighted_vector(part_hist)
+    )
+

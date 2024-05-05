@@ -72,7 +72,7 @@ void CFootBotWalk::ControlStepROS() {
         simulation_utils::Distance item;
 
         distances.robot_id = (int) GetId()[2];
-        distances.timestep = count;
+        distances.timestamp = count;
 
         for (int j = 0; j < m_nRobots; ++j) {
             item.other_robot_id = 'A' + j;
@@ -86,7 +86,7 @@ void CFootBotWalk::ControlStepROS() {
 
         // Publish the message
         if (m_distancesMessage.robot_id != 0) {
-            m_distancesMessage.timestep = count;
+            m_distancesMessage.timestamp = count;
             m_distancesPublisher.publish(m_distancesMessage);
 
             // Clean message for next iteration

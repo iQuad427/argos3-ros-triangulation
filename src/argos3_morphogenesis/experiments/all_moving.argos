@@ -7,7 +7,7 @@
     <framework>
         <system threads="0" />
         <experiment length="0"
-                    ticks_per_second="10"
+                    ticks_per_second="20"
                     random_seed="124" />
     </framework>
 
@@ -91,13 +91,12 @@
     <!-- * Media * -->
     <!-- ********* -->
     <media>
-        <range_and_bearing id="rab" check_occlusions="true" />
+        <range_and_bearing id="rab" check_occlusions="false" />
     </media>
 
     <!-- ****************** -->
     <!-- * Visualization * -->
     <!-- ****************** -->
-<!--    <virtualization />-->
     <visualization>
         <qt-opengl>
             <camera>

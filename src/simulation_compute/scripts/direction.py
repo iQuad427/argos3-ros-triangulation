@@ -137,6 +137,9 @@ def find_direction_vector_from_position_history(position_history):
     :param position_history: A list of positions
     :return: The direction vector
     """
+    if not position_history:
+        return None
+
     # Convert the list to a numpy array
     position_history = np.array(position_history)
 

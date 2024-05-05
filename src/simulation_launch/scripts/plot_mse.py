@@ -1,95 +1,10 @@
-import dataclasses
 import datetime
-import os
 from pathlib import Path
-from typing import List
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from utils import rotate_and_translate
-
-from tqdm import tqdm
-
-
-@dataclasses.dataclass
-class Position:
-    id: int
-    x: float
-    y: float
-
-    def __repr__(self):
-        return f"{self.id},{self.x},{self.y}"
-
-
-@dataclasses.dataclass
-class Memory:
-    positions: List[Position]
-    timestamp: float
-
-    def __repr__(self):
-        buffer = f"{self.timestamp}&"
-        for position in self.positions:
-            buffer += f"{position}#"
-
-        return buffer[:-1]
-
-
-class FileReader:
-    """
-    Read a file like the following :
-    type=relative_time=time&id,x,y#id,x,y#id,x,y#id,x,y ...
-
-    And allow for doing some operations on it.
-    """
-
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.file_name = file_path.split("/")[-1]
-        self.data, self.time = self._read_file(file_path)
-
-    def _read_file(self, file_path):
-        with open(file_path, "r") as f:
-            lines = f.readlines()
-
-        data = []
-        time_values = []
-        # By stem of 2 because we have 2 lines for each time
-        for j in range(0, len(lines), 2):
-            estimation_line = lines[j].split("\n")[0].split("=")
-            simulation_line = lines[j + 1].split("\n")[0].split("=")
-
-            time_values.append(float(estimation_line[1]))
-            time_step = []
-
-            for line in [estimation_line, simulation_line]:
-                positions = line[2].split("&")[1].split("#")
-                positions = [position.split(",") for position in positions]
-                positions = [
-                    Position(int(position[0]), float(position[1]), float(position[2])) for position in positions
-                ]
-                time_step.append(
-                    Memory(
-                        positions,
-                        float(line[2].split("&")[0])
-                    )
-                )
-
-            data.append(time_step)
-
-        return data, time_values
-
-    def make_numpy(self):
-        data = []
-
-        for step in self.data:
-            estimation = np.array([[position.x, position.y] for position in step[0].positions])
-            simulation = np.array([[position.x, position.y] for position in step[1].positions])
-
-            data.append([estimation, simulation])
-
-        return data
-
+from utils import rotate_and_translate, FileReader
 
 if __name__ == '__main__':
     # Seed 1 : 124
@@ -98,23 +13,25 @@ if __name__ == '__main__':
     # Seed 4 : 097
     # Seed 5 : 172
 
-    seeds = [124]
-    # seeds = [124, 42, 427, 97, 172]
-    drops = [0.90]
+    # seeds = [124]
+    seeds = [124, 42, 427, 97, 172]
+    drops = [0.98]
     # drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
-    errors = [0.00]
+    errors = [0.0]
     # errors = [0.00, 0.05, 0.10, 0.15]
 
-    limit = (0, 300)  # 300 => 60 seconds
+    limit = (100, 300)  # 300 => 60 seconds
     flip_test = True
     file_directory = f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/test_fast"
 
-    mds = True
-    pf = False
+    mds = False
+    pf = True
 
-    init = [False, True]
+    subplot = False
+
+    init = [True, False]
     offset = [False]
-    certainty = [False, True]
+    certainty = [True, False]
 
     batch_plot = 5
     plot_grid = False  # To plot the last estimation of a given batch
@@ -215,8 +132,9 @@ if __name__ == '__main__':
 
                 # f.write(f"{experiment.split('/')[1]},{drop},{error},{batch},{len(filtered_time)},{len(flips)}\n")
 
-                # plt.plot(time[limit[0]:limit[1]], mses, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
-                # plt.scatter(filtered_time, filtered_mses, c="r", s=1)
+                if subplot:
+                    plt.plot(time[limit[0]:limit[1]], mses, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
+                    plt.scatter(filtered_time, filtered_mses, c="r", s=1)
 
                 # plt.show()
 
@@ -229,7 +147,7 @@ if __name__ == '__main__':
             mean_square_error = np.mean(np.array(mean_square_error), axis=0)
 
             # Plot the Mean Square Error
-            label = ", ".join(experiment.split("/")[1].split("_")) + f" drop = {drop}"
+            label = ", ".join(experiment.split("/")[1].split("_")) + f", drop = {drop}, error = {error}"
             plt.plot(time[limit[0]:], mean_square_error, label=label)
 
     # f.close()

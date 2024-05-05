@@ -112,7 +112,7 @@ void CStatisticsLoopFunctions::ControlStepROS() {
         /* Go through them */
 
         simulation_utils::Positions positions;
-        positions.timestep = count;
+        positions.timestamp = count;
 
         for (CSpace::TMapPerType::iterator it = tFBMap.begin(); it != tFBMap.end(); ++it) {
             simulation_utils::Odometry odometry;

@@ -41,16 +41,20 @@ def main():
     # Seed 5 : 172
 
     input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/drop_rate"
-    seeds = ["124", "42", "427", "97", "172"]
-    drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
-    errors = [0.00, 0.05, 0.10, 0.15]
+    # seeds = ["124", "42", "427", "97", "172"]
+    seeds = ["124"]
+    # drops = [0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
+    drops = [0.90]
+    # errors = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+    errors = [0.00]
 
-    experiment_duration = 150
-    experiment_start = 30
+    experiment_duration = 120
+    experiment_start = 0
+    iteration_rate = 20
 
     total_experiments = len(seeds) * len(drops) * len(errors)
 
-    experiment = "save_fast_experiment_data"
+    experiment = "save_experiment_data"
     simulation = False
 
     rospy.init_node('simulation_manager', anonymous=True)
@@ -77,12 +81,12 @@ def main():
         with open("/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/template.argos", "r") as file:
             data = file.readlines()
 
-        # Cycle through the line to replace the following space holder:
-        # &seed& -> seed
-        # &drop_rate& -> drop_rate
+        # Cycle through the line to replace the placeholders
         for i, line in enumerate(data):
             if "&seed&" in line:
                 data[i] = line.replace("&seed&", str(seed))
+            if "&iteration&" in line:
+                data[i] = line.replace("&iteration&", str(iteration_rate))
             if "&drop_rate&" in line:
                 data[i] = line.replace("&drop_rate&", str(drop_rate))
             if "&duration&" in line:
@@ -102,6 +106,7 @@ def main():
             + f" simulation:={simulation}"
             + f" experiment_duration:={experiment_duration}"
             + f" experiment_start:={experiment_start}"
+            + f" iteration_rate:={iteration_rate}"
             + f" input_dir:={input_directory}"
             + f" input_file:={input_file}"
             + f" random_seed:={seed}",

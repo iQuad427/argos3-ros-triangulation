@@ -138,9 +138,8 @@ def talker():
         historical_data = defaultdict(list)
         simulation_data = defaultdict(list)
 
-        # TODO: put together distance.s in the topic distances
-        rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestep].append(data))
-        rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestep].append(data))
+        rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestamp].append(data))
+        rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestamp].append(data))
 
         while not rospy.is_shutdown() and not stop:
             pass

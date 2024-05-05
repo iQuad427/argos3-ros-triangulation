@@ -220,11 +220,11 @@ void CFootBotWalk::ControlStep() {
 
     /** Obstacle Avoidance Vector Computation */
 
-    if (!start) {
-        m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
-        ControlStepROS();
-        return;
-    }
+//    if (!start) {
+//        m_pcWheels->SetLinearVelocity(0.0f, 0.0f);
+//        ControlStepROS();
+//        return;
+//    }
 
     /* Random Movement */
     /* Get readings from proximity sensor */

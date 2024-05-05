@@ -1,5 +1,5 @@
 
 
-int64 timestep
+float timestamp
 
 Odometry[] odometry_data

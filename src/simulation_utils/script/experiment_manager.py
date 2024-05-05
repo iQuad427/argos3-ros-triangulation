@@ -23,25 +23,21 @@ def manager():
     rospy.init_node('simulation_manager', anonymous=True)
     publisher = rospy.Publisher('simulation/manage_command', Manage, queue_size=10)
 
-    time.sleep(30)
+    start = time.time()
+
+    while time.time() - start < int(experiment_start) and compute:
+        time.sleep(0.1)
+
+    print("Starting...")
 
     publisher.publish(Manage(stop=False))
 
-    # start = time.time()
-    #
-    # while time.time() - start < int(experiment_start) and compute:
-    #     time.sleep(0.1)
-    #
-    # print("Starting...")
-    #
-    # publisher.publish(Manage(stop=False))
-    #
-    # while time.time() - start < int(experiment_duration) and compute:
-    #     time.sleep(0.1)
-    #
-    # print("Stopping...")
-    #
-    # publisher.publish(Manage(stop=True))
+    while time.time() - start < int(experiment_duration) and compute:
+        time.sleep(0.1)
+
+    print("Stopping...")
+
+    publisher.publish(Manage(stop=True))
 
 
 if __name__ == '__main__':

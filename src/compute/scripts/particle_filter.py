@@ -17,7 +17,7 @@ from morpho_msgs.msg import Direction, Angle, RangeAndBearing
 from sklearn.linear_model import LinearRegression
 from tri_msgs.msg import Distances, Distance, Odometry, Statistics
 
-from utils import find_rotation_matrix, MultiAgentParticleFilter
+from utils import find_rotation_matrix, MultiAgentParticleFilter, compute_direction
 from direction import find_direction_vector_from_position_history, range_and_bearing, generate_weighted_vector
 
 from sklearn.manifold import MDS
@@ -156,7 +156,7 @@ def compute_positions(distances, multi_agent_pf, config=None):
     return multi_agent_pf.estimate()
 
 
-def update_plot(agent, distances, embedding, historic):
+def update_plot(agent, distances, embedding, embedding_historic, position_historic, distance_historic):
     if distances is None:
         raise ValueError("Distance matrix should be defined at this point")
 
@@ -182,16 +182,27 @@ def update_plot(agent, distances, embedding, historic):
     plt.scatter(embedding[:, 0], embedding[:, 1], c='red')
     plt.scatter(embedding[agent, 0], embedding[agent, 1], c='blue')
 
-    for i, point in enumerate(reversed(historic)):
+    for i, point in enumerate(reversed(position_historic)):
         plt.scatter(point[0], point[1], color="r", alpha=0.5 / (i + 1))
 
-    if historic:
-        # Smoothing of direction
-        direction_vector = find_direction_vector_from_position_history(historic) * 10
-        direction_vector = generate_weighted_vector(add_direction(direction_vector))
+    # Plot the direction of the agent
+    # TODO: historic come as lists, should manage transformation of sub-lists to numpy arrays
+    if embedding_historic and position_historic and distance_historic:
+        distance_direction, historic_direction, particle_direction = compute_direction(
+            embedding_historic,
+            position_historic,
+            distance_historic
+        )
+
+        size = 100
+        agent = 0
+
+        plt.arrow(embedding[agent, 0], embedding[agent, 1], size * particle_direction[0], size * particle_direction[1], head_width=10, head_length=10, fc='k', ec='k', label="particle")
+        plt.arrow(embedding[agent, 0], embedding[agent, 1], size * distance_direction[0], size * distance_direction[1], head_width=10, head_length=10, fc='r', ec='r', label="distance")
+        plt.arrow(embedding[agent, 0], embedding[agent, 1], size * historic_direction[0], size * historic_direction[1], head_width=10, head_length=10, fc='b', ec='b', label="historic")
 
     # Plot direction from current embedding of agent
-    # plt.arrow()
+    plt.legend()
 
     # Redraw the canvas
     canvas.draw()
@@ -315,7 +326,9 @@ def listener():
     pub = rospy.Publisher(f'/{agent_id}/range_and_bearing', RangeAndBearing, queue_size=10)
     statistics_pub = rospy.Publisher(f'/{agent_id}/positions', Statistics, queue_size=10)
 
-    historic = []
+    embedding_historic = []
+    position_historic = []
+    distance_historic = []
 
     # Save previous values
     previous_estimation = compute_positions(
@@ -326,7 +339,14 @@ def listener():
 
     count = 0
 
-    update_plot(self_id - ord('A'), distance_matrix, previous_estimation, historic)
+    update_plot(
+        self_id - ord('A'),
+        distance_matrix,
+        previous_estimation,
+        embedding_historic,
+        position_historic,
+        distance_historic
+    )
 
     iteration_rate = 30
     crashed = False
@@ -349,11 +369,17 @@ def listener():
         # corr_position = correlated_positions(n_robots)
 
         # Update position historic
-        historic.append(list(position_estimation[self_id - ord('A')]))
-        historic = historic[-5:]
+        embedding_historic.append(np.copy(position_estimation))
+        embedding_historic = embedding_historic[-5:]
+
+        position_historic.append(list(position_estimation[self_id - ord('A')]))
+        position_historic = position_historic[-5:]
+
+        distance_historic.append(list(new_dm[self_id - ord('A')]))
+        distance_historic = distance_historic[-5:]
 
         # Update the plot
-        update_plot(self_id - ord('A'), new_dm, previous_estimation, historic)
+        update_plot(self_id - ord('A'), new_dm, previous_estimation, embedding_historic, position_historic, distance_historic)
 
         # Save current estimation
         previous_estimation = np.copy(position_estimation)

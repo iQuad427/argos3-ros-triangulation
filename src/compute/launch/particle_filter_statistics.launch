@@ -5,7 +5,7 @@
     <arg name="n" default="4" />
     <arg name="a" default="fbA" />
 
-    <node pkg="compute" type="statistics.py" name="statistics" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg a)" launch-prefix="$(arg venv)" ></node>
+<!--     <node pkg="compute" type="statistics.py" name="statistics" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg a)" launch-prefix="$(arg venv)" ></node> -->
     <node pkg="compute" type="particle_filter.py" name="particle_filter" output="screen" cwd="node" args="$(arg a) $(arg n)" launch-prefix="$(arg venv)"></node>
 </launch>
 

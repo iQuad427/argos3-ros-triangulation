@@ -9,10 +9,11 @@
     <arg name="experiment_duration" default="10" />
     <arg name="experiment_start" default="5" />
     <arg name="random_seed" default="124" />
+    <arg name="iteration_rate" default="10" />
 
     <node pkg="simulation_utils" type="experiment_manager.py" name="experiment_manager" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg experiment_duration) $(arg experiment_start)" ></node>
 
     <arg name="a" default="fbA" />
 
-    <node pkg="saving_experiments" type="main.py" name="sensor_measurements" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file)" ></node>
+    <node pkg="saving_experiments" type="main.py" name="sensor_measurements" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file) $(arg iteration_rate)" ></node>
 </launch>

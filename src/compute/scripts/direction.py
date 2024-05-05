@@ -138,7 +138,10 @@ def find_direction_vector_from_position_history(position_history):
     :return: The direction vector
     """
     # Convert the list to a numpy array
-    position_history = np.array(position_history)
+    position_history = np.array(position_history)[:, 0:2]
+
+    if len(position_history) < 2:
+        return np.array([0, 0])
 
     # Compute the difference between each position
     diff = position_history[1:] - position_history[:-1]
@@ -147,8 +150,8 @@ def find_direction_vector_from_position_history(position_history):
     direction_vector = np.mean(diff, axis=0)
 
     # Normalize the direction vector
-
-    direction_vector = direction_vector / np.linalg.norm(direction_vector)
+    if np.linalg.norm(direction_vector) > 0:
+        direction_vector = direction_vector / np.linalg.norm(direction_vector)
 
     return direction_vector
 

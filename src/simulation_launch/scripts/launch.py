@@ -36,20 +36,26 @@ def main():
     input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/drop_rate"
     output_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/test_fast"
 
-    seeds = [124]
-    # seeds = [124, 42, 427, 97, 172]
-    drops = [0.90]
+    # Rerun list:
+    # - /home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/test_fast/mds/mds_init/drop_0.98_seed_124_error_0.15_duration_150_start_30
+    # RUN: 357/400, drop_rate = 0.96, seed = 172, error = 0.0... FALSE, FALSE, FALSE
+
+    # RUN: 65/400, drop_rate = 0.97, seed = 42, error = 0.0... random_seed=42, init=True, offset=False, certainty=True,
+
+    # seeds = [124]
+    seeds = [124, 42, 427, 97, 172]
+    drops = [0.90, 0.95, 0.96, 0.97, 0.98]
     # drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
-    errors = [0.00]
-    # errors = [0.00, 0.05, 0.10, 0.15]
+    # errors = [0.00]
+    errors = [0.00, 0.05, 0.10, 0.15]
 
     # TODO: add the possibility to launch multiple batch (seed in computation of the same experiment)
     batch = [1, 2, 3, 4, 5]  # Can use the same seeds as above, won't have any negative impact
 
-    mds = True
-    pf = False
+    mds = False
+    pf = True
 
-    experiment_duration = 60
+    experiment_duration = 120
 
     n_particles = 5000
     agents_speed = 30
@@ -102,6 +108,8 @@ def main():
             if file_name in os.listdir(output_dir):
                 print(f"SKIP: {count}/{len(mds_experiments) * len(experiments)}, drop_rate = {drop}, seed = {seed}, error = {error}...")
                 continue
+            else:
+                print(f"RUN: {count}/{len(mds_experiments) * len(experiments)}, drop_rate = {drop}, seed = {seed}, error = {error}...")
 
             arguments = ""
 
@@ -161,8 +169,10 @@ def main():
 
             # If input file already exists, skip
             if file_name in os.listdir(output_dir):
-                print(f"SKIP: {count}/{len(mds_experiments) * len(experiments)}, drop_rate = {drop}, seed = {seed}, error = {error}...")
+                print(f"SKIP: {count}/{len(pf_experiments) * len(experiments)}, drop_rate = {drop}, seed = {seed}, error = {error}...")
                 continue
+            else:
+                print(f"RUN: {count}/{len(pf_experiments) * len(experiments)}, drop_rate = {drop}, seed = {seed}, error = {error}...")
 
             arguments = ""
 
@@ -185,7 +195,7 @@ def main():
             arguments += f" sensor_std_err:=\"{sensor_std_err}\""
             arguments += f" dt:=\"{dt}\""
 
-            run_command("roslaunch simulation_launch particle_filter_statistics.launch" + arguments)
+            run_command("roslaunch simulation_launch particle_filter_fast_statistics.launch" + arguments)
 
     print("FINISHED")
 
