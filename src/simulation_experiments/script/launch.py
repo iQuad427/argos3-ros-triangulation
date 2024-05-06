@@ -43,9 +43,9 @@ def main():
     input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/simulation"
     seeds = ["124", "42", "427", "97", "172"]
     # seeds = ["124"]
-    drops = [0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
+    drops = [0.50]
     # drops = [0.90]
-    errors = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+    errors = [0.00, 0.05, 0.10, 0.15]
     # errors = [0.00]
 
     experiment_duration = 120

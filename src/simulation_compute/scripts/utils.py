@@ -253,19 +253,20 @@ def compute_angle_from_distances(plot, ref_distances, distances):
 
 
 def compute_direction(embedding_hist, positions_hist, distances_hist):
-    # embedding_hist = [np.array(embedding) for embedding in embedding_hist]
+    embedding_hist = [np.array(embedding) for embedding in embedding_hist]
     positions_hist = [np.array(positions) for positions in positions_hist]
-    # distances_hist = [np.array(distances) for distances in distances_hist]
+    distances_hist = [np.array(distances) for distances in distances_hist]
 
     # 1. From relative distance evolution
     distance_estimation = np.array([0, 0])
-    # if len(embedding_hist) > 1 and len(distances_hist) > 1:
-    #     # Compute the average direction from the differences
-    #     direction_vector = compute_angle_from_distances(embedding_hist[-2], distances_hist[-2], distances_hist[-1])
-    #     distance_estimation = direction_vector
+    if len(embedding_hist) > 1 and len(distances_hist) > 1:
+        # Compute the average direction from the differences
+        direction_vector = compute_angle_from_distances(embedding_hist[-2], distances_hist[-2], distances_hist[-1])
+        distance_estimation = direction_vector
 
     # 2. From historic of estimated positions
-    historic_estimation = find_direction_vector_from_position_history(positions_hist)
+    historic_estimation = np.array([0, 0])
+    # historic_estimation = find_direction_vector_from_position_history(positions_hist)
 
     # 3. From the particle filter estimated positions and angles
     particle_estimation = np.array([0, 0])
@@ -275,10 +276,10 @@ def compute_direction(embedding_hist, positions_hist, distances_hist):
     #     particle_estimation = np.mean(np.array([np.cos(angles), np.sin(angles)]), axis=1)
 
     # Normalize each vector if non zero norm
-    # if norm(distance_estimation) != 0:
-    #     distance_estimation /= norm(distance_estimation)
-    if norm(historic_estimation) != 0:
-        historic_estimation /= norm(historic_estimation)
+    if norm(distance_estimation) != 0:
+        distance_estimation /= norm(distance_estimation)
+    # if norm(historic_estimation) != 0:
+    #     historic_estimation /= norm(historic_estimation)
     # if norm(particle_estimation) != 0:
     #     particle_estimation /= norm(particle_estimation)
 

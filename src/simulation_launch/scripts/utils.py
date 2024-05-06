@@ -123,11 +123,16 @@ def find_rotation_matrix(X, Y, flipped=False):
     return R, flip
 
 
-def rotate_and_translate(reference, points):
+def rotate_and_translate(reference, points, directions=None):
     rotation, flip = find_rotation_matrix(reference.T, points.T)
 
     # Apply the rotation
     points_rotated = points @ rotation
+
+    # Also rotate the directions vector
+    directions_rotated = None
+    if directions is not None:
+        directions_rotated = directions @ rotation
 
     # First, find the centroid of the original points
     centroid = np.mean(reference, axis=0)
@@ -139,7 +144,9 @@ def rotate_and_translate(reference, points):
     translation = centroid - points_centroid
 
     # Translate the MDS points
-    return points_rotated + translation.T, flip
+    points_translated = points_rotated + translation.T
+
+    return (points_translated, flip) if directions is None else (points_translated, directions_rotated, flip)
 
 
 def euler_from_quaternion(x, y, z, w):

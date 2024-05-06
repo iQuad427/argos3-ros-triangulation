@@ -225,6 +225,12 @@ def listener():
         positions_historic.append(list(position_estimation[self_idx - ord('A')]))
         positions_historic = positions_historic[-5:]
 
+        embedding_historic.append(np.copy(position_estimation))
+        embedding_historic = embedding_historic[-5:]
+
+        distances_historic.append(np.copy(new_dm[0]))
+        distances_historic = distances_historic[-5:]
+
         distance_direction, historic_direction, particle_direction = compute_direction(
             embedding_historic,
             positions_historic,
@@ -239,7 +245,7 @@ def listener():
         positions_msg.timestamp = (datetime.now() - start).total_seconds()
 
         # Compute angle of the robot from the direction vector
-        direction = historic_direction
+        direction = distance_direction
         if direction is not None:
             direction_angle = np.arctan2(direction[1], direction[0])
         else:

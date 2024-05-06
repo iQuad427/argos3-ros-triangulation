@@ -8,7 +8,7 @@
         <system threads="0" />
         <experiment length="0"
                     ticks_per_second="20"
-                    random_seed="124" />
+                    random_seed="427" />
     </framework>
 
     <!-- *************** -->
@@ -28,8 +28,8 @@
                 <!-- Range and Bearing sensors -->
                 <range_and_bearing implementation="medium"
                                    medium="rab"
-                                   noise_std_dev="0.3"
-                                   packet_drop_prob="0.95"
+                                   noise_std_dev="0.0"
+                                   packet_drop_prob="0.90"
                                    show_rays="true" />
             </sensors>
             <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="4" />

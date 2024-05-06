@@ -34,7 +34,7 @@ class MDSConfig(Config):
 
 def main():
     input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/simulation"
-    output_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/directions"
+    output_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/directions_distances"
 
     # seeds = [124]
     seeds = [124, 42, 427, 97, 172]
@@ -132,9 +132,9 @@ def main():
 
     pf_experiments = []
     if pf:
-        for init in [True, False]:
+        for init in [False]:
             for offset in [False]:  # Offset is not used in simulation
-                for certainty in [True, False]:
+                for certainty in [False]:
                     pf_experiments.append(ParticleConfig(
                         seed=42,
                         init=init,
