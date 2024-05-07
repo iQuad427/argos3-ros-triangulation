@@ -9,7 +9,7 @@ from simulation_utils.msg import Manage
 def run_command(prior, commands, manager):
     main_process = subprocess.Popen(prior, shell=True)
 
-    time.sleep(3)
+    # time.sleep(3)  # Removed after adding delay in the simulation to avoid starting before nodes are ready
 
     # Run the command in a subprocess
     processes = []
@@ -40,13 +40,13 @@ def main():
     # Seed 4 : 97
     # Seed 5 : 172
 
-    input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/simulation"
-    seeds = ["124", "42", "427", "97", "172"]
-    # seeds = ["124"]
-    drops = [0.50]
-    # drops = [0.90]
-    errors = [0.00, 0.05, 0.10, 0.15]
-    # errors = [0.00]
+    input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/directions"
+    # seeds = ["124", "42", "427", "97", "172"]
+    seeds = ["124"]
+    # drops = [0.50]
+    drops = [0.90]
+    # errors = [0.00, 0.05, 0.10, 0.15]
+    errors = [0.00]
 
     experiment_duration = 120
     experiment_start = 0
@@ -54,7 +54,7 @@ def main():
 
     total_experiments = len(seeds) * len(drops) * len(errors)
 
-    experiment = "save_experiment_data"
+    experiment = "save_fast_experiment_data"
     simulation = False
 
     rospy.init_node('simulation_manager', anonymous=True)

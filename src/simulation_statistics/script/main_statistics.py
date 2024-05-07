@@ -1,44 +1,9 @@
 #!/usr/bin/python3
-import dataclasses
-import datetime
 import signal
 import sys
-from typing import List
 
 import rospy
-
 from simulation_utils.msg import Distances, Distance, Odometry, Positions, Manage
-
-
-@dataclasses.dataclass
-class Position:
-    id: int
-
-    x: float
-    y: float
-    z: float
-
-    a: float
-    b: float
-    c: float
-    d: float
-
-    def __repr__(self):
-        return f"{self.id},{self.x},{self.y}"
-
-
-@dataclasses.dataclass
-class Memory:
-    positions: List[Position]
-    timestamp: float
-
-    def __repr__(self):
-        buffer = f"{self.timestamp}&"
-        for position in self.positions:
-            buffer += f"{position}#"
-
-        return buffer[:-1]
-
 
 iterate = False
 stop = False

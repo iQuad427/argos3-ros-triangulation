@@ -109,13 +109,6 @@ def unparse_positions(msg: Positions) -> str:
     return f"{line}"
 
 
-def make_distances(data: Distance, agent_id) -> Distances:
-    msg = Distances()
-    msg.ranges = [data]
-    msg.robot_id = ord(agent_id)
-    return msg
-
-
 def add_timestamp(data, start_time):
     data.timestamp = (datetime.datetime.now() - start_time).total_seconds()
     return data
@@ -182,9 +175,9 @@ def talker():
             # Read file, line by line and output only if timestamp is reached
             lines = f.readlines()
 
-        print("START STREAMING")
-
         time.sleep(3)
+
+        print("START STREAMING")
 
         start_time = datetime.datetime.now()
 

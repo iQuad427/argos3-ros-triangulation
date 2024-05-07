@@ -83,6 +83,9 @@ void CStatisticsLoopFunctions::InitROS() {
     m_matrixMessage.distance_matrix.layout.dim.push_back(dim_1);
     m_matrixMessage.distance_matrix.layout.dim.push_back(dim_2);
     m_matrixMessage.distance_matrix.layout.data_offset = 0;
+
+    // Sleep for 1 second to allow the publisher to connect
+    ros::Duration(1).sleep();
 }
 
 void CStatisticsLoopFunctions::ControlStepROS() {

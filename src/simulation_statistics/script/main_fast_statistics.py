@@ -11,31 +11,9 @@ import rospy
 from simulation_utils.msg import Distances, Distance, Odometry, Positions, Manage
 
 
-@dataclasses.dataclass
-class Position:
-    id: int
-    x: float
-    y: float
-
-    def __repr__(self):
-        return f"{self.id},{self.x},{self.y}"
-
-
-@dataclasses.dataclass
-class Memory:
-    positions: List[Position]
-    timestamp: float
-
-    def __repr__(self):
-        buffer = f"{self.timestamp}&"
-        for position in self.positions:
-            buffer += f"{position}#"
-
-        return buffer[:-1]
-
-
 stop = False
 start = False
+iterate = False
 
 
 def callback(msg):
@@ -113,20 +91,18 @@ def parse_positions(line: str) -> Positions:
     return msg, faulty_frame
 
 
-def positions_callback(positions, args):
-    timestamp = positions.timestep / 10
+def format_positions(positions, origin=""):
+    if origin == "simulation":
+        for position in positions.odometry_data:
+            position.id = position.id if position.id >= ord('A') else position.id + ord('A')
+            position.x = position.x * 100
+            position.y = position.y * 100
+    elif origin == "agent":
+        for position in positions.odometry_data:
+            position.id = position.id if position.id >= ord('A') else position.id + ord('A')
 
-    memory = []
-    for position in positions.odometry_data:
-        memory.append(
-            Position(
-                position.id if position.id < ord('A') else position.id - ord('A'),
-                position.x if args[0] == "agent" else position.x * 100,
-                position.y if args[0] == "agent" else position.y * 100,
-            )
-        )
-
-    return Memory(memory, timestamp)
+    # Add the positions to the storage
+    return positions
 
 
 def listener():
@@ -146,8 +122,8 @@ def listener():
     historical_data = defaultdict(list)
     simulation_data = defaultdict(list)
 
-    rospy.Subscriber(f'/{agent_id}/positions', Positions, lambda data: historical_data[data.timestep].append(data), queue_size=2000)
-    rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestep].append(data), queue_size=2000)
+    rospy.Subscriber(f'/{agent_id}/positions', Positions, lambda data: historical_data[data.timestamp].append(data), queue_size=2000)
+    rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestamp].append(data), queue_size=2000)
 
     while not rospy.is_shutdown() and not start and not stop:
         pass
@@ -165,8 +141,8 @@ def listener():
             if len(est_positions) == 0 or len(sim_positions) == 0:
                 continue
 
-            sim_positions = positions_callback(sim_positions[0], ("simulation",))
-            est_positions = positions_callback(est_positions[0], ("agent",))
+            sim_positions = format_positions(sim_positions[0], origin="simulation")
+            est_positions = format_positions(est_positions[0], origin="agent")
 
             now = (step - start_time)
 

@@ -51,12 +51,14 @@ void CFootBotWalk::InitROS() {
     std::stringstream subscriberName;
 
     publisherName << name.str() << "/distances";
-    selfPublisherName << name.str() << "/distance";
     subscriberName << "/simulation/manage_command";
 
     // Register the publisher to the ROS master
     m_distancesPublisher = pub_node.advertise<simulation_utils::Distances>(publisherName.str(), 1000);
     m_manageSubscriber = sub_node.subscribe(subscriberName.str(), 10, CallbackROS);
+
+    // Sleep for 1 second to allow the publisher to connect
+    ros::Duration(1).sleep();
 }
 
 void CFootBotWalk::CallbackROS(const simulation_utils::Manage::ConstPtr& msg) {

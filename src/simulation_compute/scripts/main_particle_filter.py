@@ -188,7 +188,7 @@ def listener():
     if distance_matrix is None or certainty_matrix is None:
         raise ValueError("Distance matrix should exist at this point, ensure that you called create_matrix() beforehand")
 
-    rospy.init_node('listener', anonymous=True)
+    rospy.init_node('pf_compute', anonymous=True)
 
     # Subscribe to the manager command (to stop the node when needed)
     rospy.Subscriber('simulation/manage_command', Manage, callback)

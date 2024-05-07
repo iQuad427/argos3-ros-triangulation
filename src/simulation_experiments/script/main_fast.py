@@ -109,11 +109,9 @@ def unparse_positions(msg: Positions) -> str:
     return f"{line}"
 
 
-def make_distances(data: Distance, agent_id) -> Distances:
-    msg = Distances()
-    msg.ranges = [data]
-    msg.robot_id = ord(agent_id)
-    return msg
+def add_timestamp(data, start_time):
+    data.timestamp = (datetime.datetime.now() - start_time).total_seconds()
+    return data
 
 
 def talker():
@@ -127,6 +125,8 @@ def talker():
     output_dir = sys.argv[3]
     output_file = sys.argv[4]
 
+    iteration_rate = int(sys.argv[5])
+
     rospy.init_node('simulation_streamer', anonymous=True)
 
     # Subscribe to the manager command (to stop the node when needed)
@@ -138,36 +138,37 @@ def talker():
         historical_data = defaultdict(list)
         simulation_data = defaultdict(list)
 
-        rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestamp].append(data))
-        rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestamp].append(data))
+        rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestamp].append(data), queue_size=10000)
+        rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestamp].append(data), queue_size=10000)
 
         while not rospy.is_shutdown() and not stop:
             pass
 
         print("Started writing to file")
+        print(len(historical_data), len(simulation_data))
 
         # Start time is smallest timestep in the simulation data
         start_time = min(simulation_data.keys())
+        print(start_time)
 
         with open(f"{output_dir}/{output_file}", "w+") as f:
-            for step in range(start_time, max(historical_data.keys())):
+            for step in sorted(simulation_data.keys()):
                 distances = historical_data[step]
                 positions = simulation_data[step]
 
-                if len(distances) == 0 or len(positions) == 0:
-                    continue
-
-                positions_line = unparse_positions(positions[0])
-
                 for distance in distances:
-                    distances_line = unparse_distances(distance)
-                    f.write(f"{step/10}&{distances_line}&{positions_line}\n")
+                    distance_line = unparse_distances(distance)
+                    f.write(f"{step/iteration_rate}&distances&{distance_line}\n")
+
+                for position in positions:
+                    position_line = unparse_positions(position)
+                    f.write(f"{step/iteration_rate}&positions&{position_line}\n")
     else:
         print("Started reading from file")
 
         # Publish the read distances
-        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=2000)
-        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=2000)
+        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=10000)
+        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=10000)
 
         with open(f"{output_dir}/{output_file}", "r") as f:
             # Read file, line by line and output only if timestamp is reached
@@ -181,25 +182,30 @@ def talker():
 
         min_step = math.inf
         for line in tqdm.tqdm(lines):
-            timestep, distances, positions = line.split("&")
-            min_step = min(min_step, float(timestep))
-            timestep = float(timestep) - min_step
+            timestamp, msg_type, data = line.split("&")
+            min_step = min(min_step, float(timestamp))
+            timestamp = float(timestamp) - min_step
+
+            message = None
+            publisher = None
+            failed = True
+
+            if msg_type == "distances":
+                distances, failed = parse_distances(data)
+                if not failed:
+                    message = distances
+                    publisher = agent_publisher
+            elif msg_type == "positions":
+                positions, failed = parse_positions(data)
+                if not failed:
+                    simulation_publisher.publish(positions)
+
+            if not failed and message is not None and publisher is not None:
+                message.timestamp = float(timestamp)
+                publisher.publish(message)
 
             if stop:
                 break
-
-            distances_msg, status_1 = parse_distances(distances)
-            positions_msg, status_2 = parse_positions(positions)
-            if not status_1 and not status_2:
-                # While not the right moment, do nothing
-                # while (datetime.datetime.now() - start_time).total_seconds() < timestep:
-                #     pass
-
-                distances_msg.timestep = int(timestep * 10)
-                positions_msg.timestep = int(timestep * 10)
-
-                agent_publisher.publish(distances_msg)
-                simulation_publisher.publish(positions_msg)
 
         print("STOP STREAMING")
 

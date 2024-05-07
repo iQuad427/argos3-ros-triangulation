@@ -139,23 +139,22 @@ if __name__ == '__main__':
     mds = False
     pf = True
 
-    # plot = "positions"
-    # plot = "mse_positions"
-    plot = "mse_directions"
-
     subplot = False
     show_flip = False
-    show_speed = True
 
     init = [False]
     offset = [False]
     certainty = [False]
 
-    batch_plot = 1
-    plot_grid = False  # To plot the last estimation of a given batch
-
     angular_speed = []
     linear_speed = []
+
+    # plot = "positions"
+    # plot = "mse_positions"
+    plot = "mse_directions"
+
+    batch_plot = 1
+    plot_grid = False  # To plot the last estimation of a given batch
 
     time = np.arange(0, limit[1]) / 20
 
@@ -208,8 +207,8 @@ if __name__ == '__main__':
 
         for drop, error in config_experiments:
 
-            mean_square_error = []
-            mean_square_error_direction = []
+            positions_error = []
+            direction_error = []
 
             # Read the file
             for batch, seed in enumerate(seeds):
@@ -221,17 +220,14 @@ if __name__ == '__main__':
                     print(f"Couldn't read {file_name}", e)
                     continue
 
-                mses = []
-                mses_direction = []
-                flips = []
-
                 print("[0] File :", file_reader.file_path)
                 print("[0] File name :", file_reader.file_name)
 
+                previous_time = None
                 previous_ang = None
-                # previous_pos = None
+                previous_pos = None
 
-                for (t, est, sim) in file_reader.get_positions_and_directions():
+                for timestamp, est, sim in file_reader.get_positions_and_directions():
                     angle_est = est[:, 2]
                     angle_sim = sim[:, 2]
 
@@ -245,18 +241,14 @@ if __name__ == '__main__':
                         positions_sim, positions_est, directions=directions_est
                     )
 
-                    mse = np.mean(np.square(positions_est - positions_sim))
-
                     # Come back to an angle from direction_est
                     direction = directions_est[0]
                     angle_estimated = math.atan2(
                         direction[1], direction[0]
                     )
 
-                    print(angle_sim[0])
-
-                    mse_direction = np.abs(angle_sim[0] * 180/np.pi % 360 - angle_estimated * 180/np.pi % 360)
-                    mse_direction = mse_direction if mse_direction < 180 else mse_direction - 360
+                    direction_error = np.abs((angle_sim[0] - angle_estimated)) * 180/np.pi
+                    direction_error = direction_error if direction_error < 180 else direction_error - 360
 
                     if previous_ang is not None:  # and previous_pos is not None:
                         speed = (angle_sim[0] - previous_ang[0]) / (time[1] - time[0])
@@ -278,108 +270,9 @@ if __name__ == '__main__':
                         last_simulation = positions_sim
                         last_directions_simulation = directions_sim
 
-                    mses.append(mse)
-                    mses_direction.append(mse_direction)
-                    flips.append(flip)
-
-                # If MSEs is shorter than limit, add last value to fill up
-                while len(mses) < limit[1]:
-                    mses = mses + [mses[-1]]
-
-                while len(mses_direction) < limit[1]:
-                    mses_direction = mses_direction + [mses_direction[-1]]
-
-                # while len(angular_speed) < limit[1]:
-                #     angular_speed = angular_speed + [angular_speed[-1]]
-
-                mses = mses[limit[0]:limit[1]]
-                mses_direction = mses_direction[limit[0]:limit[1]]
-
-                flips = flips[limit[0]:limit[1]]
-                flips = np.array(flips)
-
-                angular_speed = angular_speed[limit[0]:limit[1]]
-
-                filtered_time = [time[limit[0]:limit[1]][i] for i in range(len(flips)) if flips[i]]
-                filtered_mses = [mses[i] for i in range(len(flips)) if flips[i]]
-                filtered_mses_direction = [mses_direction[i] for i in range(len(flips)) if flips[i]]
-
-                # f.write(f"{experiment.split('/')[1]},{drop},{error},{batch},{len(filtered_time)},{len(flips)}\n")
-
-                if subplot and plot == "mse_positions":
-                    plt.plot(time[limit[0]:limit[1]], mses, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
-                    # if show_flip:
-                    #     plt.scatter(filtered_time, filtered_mses, c="r", s=1)
-                if subplot and plot == "mse_directions":
-                    plt.plot(time[limit[0]:limit[1]], mses_direction, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
-                    # if show_flip:
-                    #     plt.scatter(filtered_time, filtered_mses_direction, c="r", s=1, label="flip detected")
-
-                if show_speed:
-                    plt.plot(time[limit[0]:limit[1]], angular_speed)
-
-                # plt.show()
-
-                mean_square_error.append(mses)
-                mean_square_error_direction.append(mses_direction)
-
-            if not mean_square_error:  # or not flipped_mean_square_error:
-                raise ValueError("Nothing to plot")
-
-            # Average the result for each time_step
-            mean_square_error = np.mean(np.array(mean_square_error), axis=0)
-            mean_square_error_direction = np.mean(np.array(mean_square_error_direction), axis=0)
-
-            # Plot the Mean Square Error
-            if plot == "mse_positions" and not plot_grid:
-                label = ", ".join(experiment.split("/")[1].split("_")) + f", drop = {drop}, error = {error}"
-                plt.plot(
-                    time[limit[0]:],
-                    mean_square_error,
-                    label=label
-                )
-            elif plot == "mse_directions" and not plot_grid:
-                label = ", ".join(experiment.split("/")[1].split("_")) + f", drop = {drop}, error = {error}"
-                plt.plot(
-                    time[limit[0]:],
-                    mean_square_error_direction,
-                    label=label
-                )
-                # if show_flip:
-                #     plt.scatter(filtered_time, filtered_mses_direction, c="r", s=1, zorder=10, label="flip detected")
-
-    # f.close()
-
-    # Plot a grid under the plot
-    if plot_grid and plot == "positions":
-        plt.grid(True)
-
-        arrow_size = 20
-
-        plt.scatter(last_estimation[:, 0], last_estimation[:, 1], c="r", label="Estimation")
-        for i, p in enumerate(last_estimation):
-            plt.text(p[0] + 1, p[1] + 1, i, c="r")
-            plt.arrow(p[0], p[1], arrow_size * last_directions_estimation[i, 0], arrow_size * last_directions_estimation[i, 1], head_width=5, head_length=5, fc='r', ec='r')
-
-        plt.scatter(last_simulation[:, 0], last_simulation[:, 1], c="b", label="Reality")
-        for i, p in enumerate(last_simulation):
-            plt.text(p[0] + 1, p[1] + 1, i, c="b")
-            plt.arrow(p[0], p[1], arrow_size * last_directions_simulation[i, 0], arrow_size * last_directions_simulation[i, 1], head_width=5, head_length=5, fc='b', ec='b')
-
-        plt.title(f"Wrongly Estimated Positions (4 Moving Agents, {'MDS' if mds else 'PF'})")
-
-        # Axis labels
-        plt.xlabel("X-axis (cm)")
-        plt.ylabel("Y-axis (cm)")
-
-        # Equal ratio
-        plt.axis('equal')
-
-        plt.legend()
-        plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/mse_static_positions.png", dpi=300)
-    if not plot_grid and plot == "mse_positions":
+    if plot == "mse_positions":
         # Title
-        plt.title(f"MSE of Positions (4 Moving Agents, {'MDS' if mds else 'PF'})")
+        plt.title(f"MSE of Positions")
 
         # Axis labels
         plt.xlabel("Time (s)")
@@ -389,52 +282,35 @@ if __name__ == '__main__':
         plt.legend()
 
         # Simply save with a timestamp
-        plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/plot_mse_positions.png", dpi=300)
+        plt.savefig(
+            f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/plot_mse_positions.png",
+            dpi=300
+        )
     if not plot_grid and plot == "mse_directions":
         # Title
-        plt.title(f"Error of Direction (Distances Estimation, {'MDS' if mds else 'PF'})")
-        # plt.title(f"Error of Direction (4 Moving Agents, {'MDS' if mds else 'PF'})")
+        plt.title(f"Error of Direction")
 
         # Add a redline at y = 0
         plt.axhline(y=0, color='r', linestyle='--', label="perfect estimation")
+
+        # Plot angular speed
+        plt.plot(angular_speed, color="tab:orange", label="angular speed")
 
         # Axis labels
         plt.xlabel("Time (s)")
         plt.ylabel("Error (°)")
 
         # Limit y-axis to -180/+180
-        # plt.ylim(-90, 90)
+        plt.ylim(-90, 90)
 
         # Legend
         plt.legend()
 
         # Simply save with a timestamp
-        plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/plot_mse_directions.png", dpi=300)
+        plt.savefig(
+            f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/plot_mse_directions.png",
+            dpi=300
+        )
 
-    plt.show()
-
-    # Plot the distribution of the mean error on the direction
-    plt.figure(figsize=(5, 5))
-
-    # Remove unknown values
-    mean_square_error_direction = [mse for mse in mean_square_error_direction if not np.isnan(mse)]
-    # print(mean_square_error_direction)
-
-    # Plot a gaussian kernel density estimate
-    mean, std = np.mean(mean_square_error_direction), np.std(mean_square_error_direction)
-    x = np.linspace(-180, 180, 1000)
-    y = (1 / (std * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mean) / std) ** 2)
-    plt.plot(x, y, color="r", label=f"Gaussian KDE, {mean:.2f}° ± {std:.2f}°")
-
-    # Plot the histogram with another scale
-    plt.hist(mean_square_error_direction, bins=100, alpha=0.5, label="Mean Error Distribution", density=True)
-
-    plt.title(f"Mean Error of Direction (Distances Estimation, {'MDS' if mds else 'PF'}))")
-    # plt.title(f"Mean Error of Direction (4 Moving Agents, {'MDS' if mds else 'PF'})")
-    plt.xlabel("Mean Error (°)")
-    plt.ylabel("Frequency")
-
-    plt.legend()
-    plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/hist_mse_directions.png", dpi=300)
     plt.show()
 
