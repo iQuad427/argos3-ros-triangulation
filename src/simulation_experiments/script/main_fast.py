@@ -167,8 +167,8 @@ def talker():
         print("Started reading from file")
 
         # Publish the read distances
-        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=10000)
-        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=10000)
+        agent_publisher = rospy.Publisher(f'/{agent_id}/distances', Distances, queue_size=12000)
+        simulation_publisher = rospy.Publisher(f'/simulation/positions', Positions, queue_size=12000)
 
         with open(f"{output_dir}/{output_file}", "r") as f:
             # Read file, line by line and output only if timestamp is reached
@@ -198,11 +198,14 @@ def talker():
             elif msg_type == "positions":
                 positions, failed = parse_positions(data)
                 if not failed:
-                    simulation_publisher.publish(positions)
+                    message = positions
+                    publisher = simulation_publisher
 
             if not failed and message is not None and publisher is not None:
                 message.timestamp = float(timestamp)
                 publisher.publish(message)
+
+            time.sleep(0.00001)
 
             if stop:
                 break

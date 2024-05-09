@@ -105,12 +105,6 @@ class FileReader:
                 ]),
             ])
 
-        # for step in self.data:
-        #     estimation = np.array([[position.x, position.y] for position in step[0].odometry_data])
-        #     simulation = np.array([[position.x, position.y] for position in step[1].odometry_data])
-        #
-        #     data.append([estimation, simulation])
-
         return data
 
 
@@ -121,35 +115,39 @@ if __name__ == '__main__':
     # Seed 4 : 097
     # Seed 5 : 172
 
-    seeds = [124]
-    # seeds = [124, 42, 427, 97, 172]
-    drops = [0.90]
+    # seeds = [42]
+    seeds = [124, 42, 427, 97, 172]
+    drops = [0.50]
     # drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
-    errors = [0.0]
+    errors = [0.15]
     # errors = [0.00, 0.05, 0.10, 0.15]
 
-    limit = (0, 600)  # 300 => 60 seconds for 10 iteration
+    plt.figure(figsize=(6, 4))
+    limit = (0, 1200)  # 300 => 60 seconds for 10 iteration
     flip_test = True
-    file_directory = f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/directions_distances"
+    file_directory = f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/final_slow"
 
-    iterations = 20
+    iterations = 100
     duration = 120
     start = 0
 
-    mds = False
+    mds = True
     pf = True
 
     # plot = "positions"
-    # plot = "mse_positions"
-    plot = "mse_directions"
+    plot = "mse_positions"
+    # plot = "mse_directions"
 
     subplot = False
     show_flip = False
-    show_speed = True
+    show_speed = False
 
     init = [False]
+    # init = [False, True]
     offset = [False]
+    # init = [False, True]
     certainty = [False]
+    # certainty = [False, True]
 
     batch_plot = 1
     plot_grid = False  # To plot the last estimation of a given batch
@@ -166,8 +164,6 @@ if __name__ == '__main__':
 
     # f = open("output.csv", "w+")
 
-    plt.figure(figsize=(10, 6))
-
     # List of all combination of three False/True combinations
     method_experiments = []
     if mds:
@@ -182,9 +178,9 @@ if __name__ == '__main__':
                     method_experiments.append(output_dir)
 
     if pf:
-        for i in init:
-            for j in offset:
-                for k in certainty:
+        for i in [False]:
+            for j in [False]:
+                for k in [False]:
                     output_dir = f"pf_particles_5000_std_10_dt_0.1/pf"
                     output_dir += f"_init" if i else ""
                     output_dir += f"_offset" if j else ""
@@ -253,10 +249,11 @@ if __name__ == '__main__':
                         direction[1], direction[0]
                     )
 
-                    print(angle_sim[0])
-
                     mse_direction = np.abs(angle_sim[0] * 180/np.pi % 360 - angle_estimated * 180/np.pi % 360)
                     mse_direction = mse_direction if mse_direction < 180 else mse_direction - 360
+
+                    # Take the absolute value
+                    mse_direction = np.abs(mse_direction)
 
                     if previous_ang is not None:  # and previous_pos is not None:
                         speed = (angle_sim[0] - previous_ang[0]) / (time[1] - time[0])
@@ -308,12 +305,12 @@ if __name__ == '__main__':
 
                 if subplot and plot == "mse_positions":
                     plt.plot(time[limit[0]:limit[1]], mses, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
-                    # if show_flip:
-                    #     plt.scatter(filtered_time, filtered_mses, c="r", s=1)
+                    if show_flip:
+                        plt.scatter(filtered_time, filtered_mses, c="r", s=1)
                 if subplot and plot == "mse_directions":
                     plt.plot(time[limit[0]:limit[1]], mses_direction, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
-                    # if show_flip:
-                    #     plt.scatter(filtered_time, filtered_mses_direction, c="r", s=1, label="flip detected")
+                    if show_flip:
+                        plt.scatter(filtered_time, filtered_mses_direction, c="r", s=1, label="flip detected")
 
                 if show_speed:
                     plt.plot(time[limit[0]:limit[1]], angular_speed)
@@ -324,7 +321,7 @@ if __name__ == '__main__':
                 mean_square_error_direction.append(mses_direction)
 
             if not mean_square_error:  # or not flipped_mean_square_error:
-                raise ValueError("Nothing to plot")
+                print("Nothing to plot")
 
             # Average the result for each time_step
             mean_square_error = np.mean(np.array(mean_square_error), axis=0)
@@ -379,7 +376,8 @@ if __name__ == '__main__':
         plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/mse_static_positions.png", dpi=300)
     if not plot_grid and plot == "mse_positions":
         # Title
-        plt.title(f"MSE of Positions (4 Moving Agents, {'MDS' if mds else 'PF'})")
+        # plt.title(f"MSE of Positions (4 Moving Agents, {'MDS' if mds else 'PF'})")
+        plt.title(f"Comparison of MDS and PF (err = {errors[0]})")
 
         # Axis labels
         plt.xlabel("Time (s)")
@@ -413,28 +411,28 @@ if __name__ == '__main__':
 
     plt.show()
 
-    # Plot the distribution of the mean error on the direction
-    plt.figure(figsize=(5, 5))
-
-    # Remove unknown values
-    mean_square_error_direction = [mse for mse in mean_square_error_direction if not np.isnan(mse)]
-    # print(mean_square_error_direction)
-
-    # Plot a gaussian kernel density estimate
-    mean, std = np.mean(mean_square_error_direction), np.std(mean_square_error_direction)
-    x = np.linspace(-180, 180, 1000)
-    y = (1 / (std * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mean) / std) ** 2)
-    plt.plot(x, y, color="r", label=f"Gaussian KDE, {mean:.2f}° ± {std:.2f}°")
-
-    # Plot the histogram with another scale
-    plt.hist(mean_square_error_direction, bins=100, alpha=0.5, label="Mean Error Distribution", density=True)
-
-    plt.title(f"Mean Error of Direction (Distances Estimation, {'MDS' if mds else 'PF'}))")
-    # plt.title(f"Mean Error of Direction (4 Moving Agents, {'MDS' if mds else 'PF'})")
-    plt.xlabel("Mean Error (°)")
-    plt.ylabel("Frequency")
-
-    plt.legend()
-    plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/hist_mse_directions.png", dpi=300)
-    plt.show()
+    # # Plot the distribution of the mean error on the direction
+    # plt.figure(figsize=(5, 5))
+    #
+    # # Remove unknown values
+    # mean_square_error_direction = [mse for mse in mean_square_error_direction if not np.isnan(mse)]
+    # # print(mean_square_error_direction)
+    #
+    # # Plot a gaussian kernel density estimate
+    # mean, std = np.mean(mean_square_error_direction), np.std(mean_square_error_direction)
+    # x = np.linspace(-180, 180, 1000)
+    # y = (1 / (std * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mean) / std) ** 2)
+    # plt.plot(x, y, color="r", label=f"Gaussian KDE, {mean:.2f}° ± {std:.2f}°")
+    #
+    # # Plot the histogram with another scale
+    # plt.hist(mean_square_error_direction, bins=100, alpha=0.5, label="Mean Error Distribution", density=True)
+    #
+    # plt.title(f"Mean Error of Direction (Distances Estimation, {'MDS' if mds else 'PF'}))")
+    # # plt.title(f"Mean Error of Direction (4 Moving Agents, {'MDS' if mds else 'PF'})")
+    # plt.xlabel("Mean Error (°)")
+    # plt.ylabel("Frequency")
+    #
+    # plt.legend()
+    # plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/hist_mse_directions.png", dpi=300)
+    # plt.show()
 

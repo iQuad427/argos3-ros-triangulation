@@ -33,7 +33,7 @@
     <node pkg="simulation_statistics" type="main_fast_statistics.py" name="statistics" output="screen" cwd="node" args="$(arg output_dir) $(arg output_file) $(arg n) $(arg a)" launch-prefix="$(arg venv)" ></node>
 
     <!-- Experiment -->
-    <node pkg="simulation_experiments" type="main_fast.py" name="experiment_streamer" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file) ($arg iteration_rate)" ></node>
+    <node pkg="simulation_experiments" type="main_fast.py" name="experiment_streamer" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg simulation) $(arg a) $(arg input_dir) $(arg input_file) $(arg iteration_rate)" ></node>
 
     <!-- Experiment manager -->
 <!--     <node pkg="simulation_utils" type="experiment_manager.py" name="experiment_manager" output="screen" cwd="node" launch-prefix="$(arg venv)" args="$(arg experiment_duration) $(arg experiment_duration)" ></node> -->

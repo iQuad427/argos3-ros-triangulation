@@ -12,6 +12,8 @@ import rospy
 from simulation_utils.msg import Distances, Distance, Odometry, Positions, Manage
 from sklearn.manifold import MDS
 
+from utils import compute_direction, euler_to_quaternion
+
 warnings.filterwarnings("ignore")
 
 pygame.init()
@@ -186,13 +188,17 @@ def listener():
         raise ValueError(
             "Distance matrix should exist at this point, ensure that you called create_matrix() beforehand")
 
-    rospy.init_node('main', anonymous=True)
+    rospy.init_node('mds_compute', anonymous=True)
 
     # Subscribe to the manager command (to stop the node when needed)
     rospy.Subscriber('simulation/manage_command', Manage, callback)
 
     rospy.Subscriber(f'/{agent_id}/distances', Distances, sensor_callback, (self_idx,))
     statistics_pub = rospy.Publisher(f'/{agent_id}/positions', Positions, queue_size=10)
+
+    embedding_historic = []
+    positions_historic = []
+    distances_historic = []
 
     # Save previous values
     previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
@@ -233,20 +239,57 @@ def listener():
         # Save current estimation
         previous_estimation = np.copy(position_estimation)
 
+        # Update position historic
+        positions_historic.append(list(position_estimation[self_idx - ord('A')]))
+        positions_historic = positions_historic[-5:]
+
+        embedding_historic.append(np.copy(position_estimation))
+        embedding_historic = embedding_historic[-5:]
+
+        distances_historic.append(np.copy(new_dm[0]))
+        distances_historic = distances_historic[-5:]
+
+        distance_direction, historic_direction, particle_direction = compute_direction(
+            embedding_historic,
+            positions_historic,
+            distances_historic
+        )
+
+        # Save current estimation
+        previous_estimation = np.copy(position_estimation)
+
         # Save the data for later stats
-        statistics_msg = Positions()
-        statistics_msg.timestep = int((datetime.now() - start).total_seconds() * 10)
+        positions_msg = Positions()
+        positions_msg.timestamp = (datetime.now() - start).total_seconds()
+
+        # Compute angle of the robot from the direction vector
+        direction = distance_direction
+        if direction is not None:
+            direction_angle = np.arctan2(direction[1], direction[0])
+        else:
+            direction_angle = 0
 
         for i, position in enumerate(position_estimation):
-            odometry_data = Odometry(
+            if i != self_idx - ord('A'):
+                angle = (0, 0, 0, 1)
+            else:
+                angle = euler_to_quaternion(0, 0, direction_angle)
+
+            odometry = Odometry(
                 id=i,
                 x=position[0],
                 y=position[1],
+                z=0,
+                # TODO: add the orientation information for all agents ?
+                a=angle[0],
+                b=angle[1],
+                c=angle[2],
+                d=angle[3]
             )
 
-            statistics_msg.odometry_data.append(odometry_data)
+            positions_msg.odometry_data.append(odometry)
 
-        statistics_pub.publish(statistics_msg)
+        statistics_pub.publish(positions_msg)
 
         # Tick for uncertainty increase
         certainty_matrix = certainty_matrix * 0.99

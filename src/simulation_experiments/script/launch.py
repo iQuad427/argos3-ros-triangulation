@@ -1,4 +1,5 @@
 import os
+import random
 import subprocess
 import time
 import rospy
@@ -41,16 +42,16 @@ def main():
     # Seed 5 : 172
 
     input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/directions"
-    # seeds = ["124", "42", "427", "97", "172"]
-    seeds = ["124"]
+    seeds = ["124", "42", "427", "97", "172"]
+    # seeds = ["124"]
     # drops = [0.50]
-    drops = [0.90]
-    # errors = [0.00, 0.05, 0.10, 0.15]
-    errors = [0.00]
+    drops = [0.50]
+    errors = [0.00, 0.05, 0.10, 0.15]
+    # errors = [0.00]
 
     experiment_duration = 120
     experiment_start = 0
-    iteration_rate = 20
+    iteration_rate = 100
 
     total_experiments = len(seeds) * len(drops) * len(errors)
 
@@ -69,7 +70,9 @@ def main():
 
     count = 0
     for drop_rate, seed, error in experiments:
+        random.seed(seed)
         count += 1
+
         input_file = f"drop_{drop_rate:0.2f}_iteration_{iteration_rate}_seed_{seed}_error_{error}_duration_{experiment_duration}_start_{experiment_start}"
 
         # If input file already exists, skip
@@ -95,6 +98,8 @@ def main():
                 data[i] = line.replace("&start_time&", str(experiment_start * 10))
             if "&sensor_error&" in line:
                 data[i] = line.replace("&sensor_error&", str(error))
+            if "&orientation&" in line:
+                data[i] = line.replace("&orientation&", str(random.randint(0, 360)))
 
         with open("/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/tmp.argos", "w+") as file:
             file.writelines(data)

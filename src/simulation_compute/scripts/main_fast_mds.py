@@ -13,6 +13,8 @@ import rospy
 from simulation_utils.msg import Distances, Distance, Odometry, Positions, Manage
 from sklearn.manifold import MDS
 
+from utils import compute_direction, euler_to_quaternion
+
 warnings.filterwarnings("ignore")
 
 # Distance Measurements
@@ -109,8 +111,8 @@ def compute_positions(distances, certainties, ref_plot, beacons=None, config=Non
     if distances is not None:
         # Update the data in the plot
         # Make sure the matrix is symmetric
-        matrix = (distances + distances.T) / 2  # removed '/2' because triangular matrix
-        matrix_certainty = (certainties + certainties.T)
+        matrix = (distances + distances.T) / 2
+        matrix_certainty = (certainties + certainties.T) / 2
 
         # Use sklearn MDS to reduce the dimensionality of the matrix
         mds = MDS(
@@ -249,12 +251,12 @@ def listener():
 
     historical_data = defaultdict(list)
 
-    rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestep].append(data), queue_size=2000)
+    rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestamp].append(data), queue_size=2000)
     statistics_pub = rospy.Publisher(f'/{agent_id}/positions', Positions, queue_size=2000)
 
     start = datetime.now()
 
-    while not rospy.is_shutdown() and (datetime.now() - start).total_seconds() < 5 and not stop:
+    while not rospy.is_shutdown() and (datetime.now() - start).total_seconds() < 10 and not stop:
         pass
 
     print("START COMPUTING")
@@ -262,20 +264,25 @@ def listener():
     # Start time is smallest timestep in the simulation data
     start_time = min(historical_data.keys())
 
+    embedding_historic = []
+    positions_historic = []
+    distances_historic = []
+
     # Save previous values
     previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
     previous_estimation = compute_positions(
         (distance_matrix + distance_matrix.T),
-        certainty_matrix,
+        (certainty_matrix + certainty_matrix.T),
         previous_estimation,
         beacons=beacons,
         config=config
     )  # Current estimation of the positions
 
-    for step in range(start_time, max(historical_data.keys())):
+    for step in sorted(historical_data.keys()):
         if stop:
             break
 
+        # Update using data received at timestep
         distances = historical_data[step]
 
         if len(distances) == 0:
@@ -285,13 +292,21 @@ def listener():
         for distance in distances:
             sensor_callback(distance, (self_idx,))
 
-        # Distance matrix should be symmetrical
-        new_dm = distance_matrix + distance_matrix.T
+        # Tick for uncertainty increase
+        certainty_matrix = certainty_matrix * 0.99
 
-        # Update the data in the plot
+        # Should not compute every millisecond, even if the simulation is that fast
+        should_compute = int((step - start_time) * 100) % 5 == 0
+        if not should_compute:
+            continue
+
+        new_dm = distance_matrix + distance_matrix.T
+        new_certainty = certainty_matrix + certainty_matrix.T
+
+        # Update the positions
         position_estimation = compute_positions(
             new_dm,
-            certainty_matrix,
+            new_certainty,
             previous_estimation,
             beacons=beacons,
             config=config
@@ -300,23 +315,54 @@ def listener():
         # Save current estimation
         previous_estimation = np.copy(position_estimation)
 
+        # Update position historic
+        positions_historic.append(list(position_estimation[self_idx - ord('A')]))
+        positions_historic = positions_historic[-5:]
+
+        embedding_historic.append(np.copy(position_estimation))
+        embedding_historic = embedding_historic[-5:]
+
+        distances_historic.append(np.copy(new_dm[0]))
+        distances_historic = distances_historic[-5:]
+
+        distance_direction, historic_direction, particle_direction = compute_direction(
+            embedding_historic,
+            positions_historic,
+            distances_historic
+        )
+
         # Save the data for later stats
-        statistics_msg = Positions()
-        statistics_msg.timestep = step - start_time
+        positions_msg = Positions()
+        positions_msg.timestamp = step - start_time
+
+        # Compute angle of the robot from the direction vector
+        direction = historic_direction
+        if direction is not None:
+            direction_angle = np.arctan2(direction[1], direction[0])
+        else:
+            direction_angle = 0
 
         for i, position in enumerate(position_estimation):
-            odometry_data = Odometry(
+            if i != self_idx - ord('A'):
+                angle = (0, 0, 0, 1)
+            else:
+                angle = euler_to_quaternion(0, 0, direction_angle)
+
+            odometry = Odometry(
                 id=i,
                 x=position[0],
                 y=position[1],
+                z=0,
+                # TODO: add the orientation information for all agents ?
+                a=angle[0],
+                b=angle[1],
+                c=angle[2],
+                d=angle[3]
             )
 
-            statistics_msg.odometry_data.append(odometry_data)
+            positions_msg.odometry_data.append(odometry)
 
-        statistics_pub.publish(statistics_msg)
-
-        # Tick for uncertainty increase
-        certainty_matrix = certainty_matrix * 0.99
+        statistics_pub.publish(positions_msg)
 
     print("STOP COMPUTING")
 

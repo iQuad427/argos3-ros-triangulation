@@ -3,6 +3,7 @@ import dataclasses
 import datetime
 import signal
 import sys
+import time
 from collections import defaultdict
 from typing import List
 
@@ -64,6 +65,14 @@ def parse_distances(line: str) -> Distances:
     return msg, faulty_frame
 
 
+def unparse_distances(msg: Distances) -> str:
+    line = f"{chr(msg.robot_id)}=0:100"
+    for data in msg.ranges:
+        if chr(data.other_robot_id) != chr(msg.robot_id):
+            line += f",{chr(data.other_robot_id)}={data.distance}:{data.certainty}"
+    return f"{line}"
+
+
 def parse_positions(line: str) -> Positions:
     msg = Positions()
     msg.odometry_data = []
@@ -89,6 +98,16 @@ def parse_positions(line: str) -> Positions:
         faulty_frame = True
 
     return msg, faulty_frame
+
+
+def unparse_positions(msg: Positions) -> str:
+    line = f""
+    for position in msg.odometry_data:
+        if line:
+            line += "#"
+        # TODO: add the orientation information
+        line += f"{chr(position.id)}:{position.x},{position.y},{position.z}:{position.a},{position.b},{position.c},{position.d}"
+    return f"{line}"
 
 
 def format_positions(positions, origin=""):
@@ -122,32 +141,38 @@ def listener():
     historical_data = defaultdict(list)
     simulation_data = defaultdict(list)
 
-    rospy.Subscriber(f'/{agent_id}/positions', Positions, lambda data: historical_data[data.timestamp].append(data), queue_size=2000)
-    rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestamp].append(data), queue_size=2000)
+    rospy.Subscriber(f'/{agent_id}/positions', Positions, lambda data: historical_data[data.timestamp].append(data), queue_size=12000)
+    rospy.Subscriber(f'/simulation/positions', Positions, lambda data: simulation_data[data.timestamp].append(data), queue_size=12000)
 
     while not rospy.is_shutdown() and not start and not stop:
-        pass
+        print(f"Simulation data size: {len(simulation_data)}")
+        print(f"Estimation data size: {len(historical_data)}")
+        time.sleep(1)
 
     print("START STATISTICS")
 
     # Start time is smallest timestep in the simulation data
     start_time = min(simulation_data.keys())
 
+    # Print the size of the data
+    print(f"Simulation data size: {len(simulation_data)}")
+    print(f"Estimation data size: {len(historical_data)}")
+
     with open(f"{output_dir}/{output_file}", "w+") as f:
-        for step in range(start_time, max(historical_data.keys())):
+        for step in sorted(simulation_data.keys()):
             est_positions = historical_data[step]
             sim_positions = simulation_data[step]
 
             if len(est_positions) == 0 or len(sim_positions) == 0:
                 continue
 
-            sim_positions = format_positions(sim_positions[0], origin="simulation")
-            est_positions = format_positions(est_positions[0], origin="agent")
+            simulation = format_positions(sim_positions[0], origin="simulation")
+            estimation = format_positions(est_positions[0], origin="agent")
 
             now = (step - start_time)
 
-            f.write(f"estim={now:0.2f}={est_positions}\n")
-            f.write(f"truth={now:0.2f}={sim_positions}\n")
+            f.write(f"estimation={now:0.3f}={unparse_positions(estimation)}\n")
+            f.write(f"simulation={now:0.3f}={unparse_positions(simulation)}\n")
 
     print("STOP STATISTICS")
 

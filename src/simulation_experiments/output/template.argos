@@ -64,19 +64,19 @@
         </box>
 
         <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >
-            <body orientation="234,0,0" position="-1.8,1.8,0" />
+            <body orientation="&orientation&,0,0" position="-1.8,1.8,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
-            <body orientation="288,0,0" position="-1.8,-1.8,0" />
+            <body orientation="&orientation&,0,0" position="-1.8,-1.8,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
-            <body orientation="169,0,0" position="1.8,-1.8,0" />
+            <body orientation="&orientation&,0,0" position="1.8,-1.8,0" />
             <controller config="fdc" />
         </foot-bot>
         <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
-            <body orientation="81,0,0" position="1.8,1.8,0" />
+            <body orientation="&orientation&,0,0" position="1.8,1.8,0" />
             <controller config="fdc" />
         </foot-bot>
     </arena>

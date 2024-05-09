@@ -12,7 +12,7 @@ import pygame
 import rospy
 from simulation_utils.msg import Distances, Distance, Odometry, Positions, Manage
 
-from utils import MultiAgentParticleFilter
+from utils import MultiAgentParticleFilter, compute_direction, euler_to_quaternion
 
 warnings.filterwarnings("ignore")
 
@@ -187,12 +187,12 @@ def listener():
 
     historical_data = defaultdict(list)
 
-    rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestep].append(data), queue_size=10000)
+    rospy.Subscriber(f'/{agent_id}/distances', Distances, lambda data: historical_data[data.timestamp].append(data), queue_size=10000)
     statistics_pub = rospy.Publisher(f'/{agent_id}/positions', Positions, queue_size=10000)
 
     start = datetime.now()
 
-    while not rospy.is_shutdown() and (datetime.now() - start).total_seconds() < 5 and not stop:
+    while not rospy.is_shutdown() and (datetime.now() - start).total_seconds() < 10 and not stop:
         pass
 
     print("START COMPUTING")
@@ -226,8 +226,13 @@ def listener():
         for distance in distances:
             sensor_callback(distance, (self_idx,))
 
-        # TODO: If the time since the last time step is too short, skip computation step
-        #       Should not compute every milliseconds, even if the simulation is that fast
+        # Tick for uncertainty increase
+        certainty_matrix = certainty_matrix * 0.99
+
+        # Should not compute every millisecond, even if the simulation is that fast
+        should_compute = int((step - start_time) * 100) % 5 == 0
+        if not should_compute:
+            continue
 
         # Distance matrix should be symmetrical
         new_dm = distance_matrix + distance_matrix.T
@@ -258,8 +263,8 @@ def listener():
         )
 
         # Save the data for later stats
-        statistics_msg = Positions()
-        statistics_msg.timestamp = step - start_time
+        positions_msg = Positions()
+        positions_msg.timestamp = step - start_time
 
         # Compute angle of the robot from the direction vector
         direction = historic_direction
@@ -289,9 +294,6 @@ def listener():
             positions_msg.odometry_data.append(odometry)
 
         statistics_pub.publish(positions_msg)
-
-        # Tick for uncertainty increase
-        certainty_matrix = certainty_matrix * 0.99
 
     print("STOP COMPUTING")
 

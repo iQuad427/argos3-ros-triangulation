@@ -13,31 +13,30 @@ if __name__ == '__main__':
     # Seed 4 : 097
     # Seed 5 : 172
 
-    # seeds = [124]
-    seeds = [124, 42, 427, 97, 172]
-    drops = [0.98]
+    seeds = [124]
+    # seeds = [124, 42, 427, 97, 172]
+    drops = [0.50]
     # drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
     errors = [0.0]
     # errors = [0.00, 0.05, 0.10, 0.15]
 
-    limit = (100, 300)  # 300 => 60 seconds
-    flip_test = True
-    file_directory = f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/drop_rate"
-    iterations = 20
+    limit = (0, 300)  # 300 => 60 seconds
+    time = np.arange(0, limit[1]) / 5
 
-    mds = False
+    file_directory = f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/final"
+    iterations = 100
+
+    mds = True
     pf = True
 
     subplot = False
 
-    init = [True, False]
+    init = [False]
     offset = [False]
-    certainty = [True, False]
+    certainty = [False]
 
     batch_plot = 0
     plot_grid = False  # To plot the last estimation of a given batch
-
-    time = np.arange(0, limit[1]) / 5
 
     last_estimation = None
     last_simulation = None

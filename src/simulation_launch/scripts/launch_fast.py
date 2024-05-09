@@ -33,25 +33,29 @@ class MDSConfig(Config):
 
 
 def main():
-    input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/simulation"
-    output_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/directions"
+    input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/directions"
+    output_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/output/final"
 
     # seeds = [124]
     seeds = [124, 42, 427, 97, 172]
-    drops = [0.90]
+    drops = [0.50]
     # drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
-    errors = [0.00]
+    errors = [0.15]
     # errors = [0.00, 0.05, 0.10, 0.15]
 
     # TODO: add the possibility to launch multiple batch (seed in computation of the same experiment)
     batch = [1, 2, 3, 4, 5]  # Can use the same seeds as above, won't have any negative impact
 
-    mds = False
+    mds = True
     pf = True
+
+    inits = [False, True]
+    offsets = [False]  # Offset is not used in simulation
+    certainties = [False, True]
 
     experiment_duration = 60
 
-    iterations = 20
+    iterations = 100
     duration = 120
     start = 0
 
@@ -72,9 +76,9 @@ def main():
 
     mds_experiments = []
     if mds:
-        for init in [True, False]:
-            for offset in [False]:  # Offset is not used in simulation
-                for certainty in [True, False]:
+        for init in inits:
+            for offset in offsets:
+                for certainty in certainties:
                     mds_experiments.append(MDSConfig(
                         seed=42,
                         init=init,
@@ -132,9 +136,9 @@ def main():
 
     pf_experiments = []
     if pf:
-        for init in [True, False]:
-            for offset in [False]:  # Offset is not used in simulation
-                for certainty in [True, False]:
+        for init in inits:
+            for offset in offsets:  # Offset is not used in simulation
+                for certainty in certainties:
                     pf_experiments.append(ParticleConfig(
                         seed=42,
                         init=init,
