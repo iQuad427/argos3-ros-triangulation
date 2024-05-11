@@ -1,0 +1,8 @@
+<launch>
+    <arg name="test" default="false" />
+    <param name="test_bool" type="bool" value="$(arg test)" />
+
+    <node name="main_mds" pkg="experiment_compute" type="main.py" output="screen">
+        <param name="best" type="bool" value="$(arg test)" />
+    </node>
+</launch>

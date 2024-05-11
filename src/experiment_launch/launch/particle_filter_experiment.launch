@@ -1,0 +1,60 @@
+<launch>
+    <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
+
+    <arg name="input_dir" default="" />
+    <arg name="input_file" default="" />
+    <arg name="simulation" default="True" />
+
+    <arg name="output_dir" default="" />
+    <arg name="output_file" default="" />
+
+    <arg name="experiment_duration" default="10" />
+    <arg name="experiment_start" default="0" />
+    <arg name="random_seed" default="42" />
+    <arg name="iteration_rate" default="10" />
+
+    <arg name="n" default="4" />
+    <arg name="b" default="fbB" />
+    <arg name="beacons" default="Z" />
+
+    <!-- Experiment -->
+    <arg name="init" default="False" />
+    <arg name="offset" default="False" />
+    <arg name="certainty" default="False" />
+    <arg name="directions" default="displacement" />
+
+    <!-- Particle Filter -->
+    <arg name="n_particles" default="5000" />
+    <arg name="agents_speed" default="30" />
+    <arg name="sensor_std_err" default="10" />
+    <arg name="dt" default="0.1" />
+
+    <param name="input_dir" type="str" value="$(arg input_dir)" />
+    <param name="input_file" type="str" value="$(arg input_file)" />
+    <param name="simulation" type="bool" value="$(arg simulation)" />
+
+    <param name="output_dir" type="str" value="$(arg output_dir)" />
+    <param name="output_file" type="str" value="$(arg output_file)" />
+
+    <param name="experiment_duration" type="int" value="$(arg experiment_duration)" />
+    <param name="experiment_start" type="int" value="$(arg experiment_start)" />
+    <param name="random_seed" type="int" value="$(arg random_seed)" />
+    <param name="iteration_rate" type="int" value="$(arg iteration_rate)" />
+
+    <param name="n" type="int" value="$(arg n)" />
+    <param name="b" type="str" value="$(arg b)" />
+    <param name="beacons" type="str" value="$(arg beacons)" />
+
+    <param name="init" type="bool" value="$(arg init)" />
+    <param name="offset" type="bool" value="$(arg offset)" />
+    <param name="certainty" type="bool" value="$(arg certainty)" />
+    <param name="directions" type="str" value="$(arg directions)" />
+
+    <param name="n_particles" type="int" value="$(arg n_particles)" />
+    <param name="agents_speed" type="int" value="$(arg agents_speed)" />
+    <param name="sensor_std_err" type="int" value="$(arg sensor_std_err)" />
+    <param name="dt" type="double" value="$(arg dt)" />
+
+    <!-- fbB computation and statistics -->
+    <node pkg="experiment_compute" type="main_particle_filter.py" name="particle_filter" output="screen" cwd="node" launch-prefix="$(arg venv)"></node>
+</launch>

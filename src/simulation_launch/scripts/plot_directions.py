@@ -115,8 +115,8 @@ if __name__ == '__main__':
     # Seed 4 : 097
     # Seed 5 : 172
 
-    # seeds = [42]
-    seeds = [124, 42, 427, 97, 172]
+    seeds = [42]
+    # seeds = [124, 42, 427, 97, 172]
     drops = [0.50]
     # drops = [0.00, 0.25, 0.50, 0.75, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]
     errors = [0.15]
@@ -135,14 +135,14 @@ if __name__ == '__main__':
     pf = True
 
     # plot = "positions"
-    plot = "mse_positions"
-    # plot = "mse_directions"
+    # plot = "mse_positions"
+    plot = "mse_directions"
 
     subplot = False
     show_flip = False
-    show_speed = False
+    show_speed = True
 
-    init = [False]
+    init = [True]
     # init = [False, True]
     offset = [False]
     # init = [False, True]
@@ -151,9 +151,6 @@ if __name__ == '__main__':
 
     batch_plot = 1
     plot_grid = False  # To plot the last estimation of a given batch
-
-    angular_speed = []
-    linear_speed = []
 
     time = np.arange(0, limit[1]) / 20
 
@@ -221,6 +218,8 @@ if __name__ == '__main__':
                 mses_direction = []
                 flips = []
 
+                angular_speed = []
+
                 print("[0] File :", file_reader.file_path)
                 print("[0] File name :", file_reader.file_name)
 
@@ -253,7 +252,7 @@ if __name__ == '__main__':
                     mse_direction = mse_direction if mse_direction < 180 else mse_direction - 360
 
                     # Take the absolute value
-                    mse_direction = np.abs(mse_direction)
+                    # mse_direction = np.abs(mse_direction)
 
                     if previous_ang is not None:  # and previous_pos is not None:
                         speed = (angle_sim[0] - previous_ang[0]) / (time[1] - time[0])
@@ -302,6 +301,8 @@ if __name__ == '__main__':
                 filtered_mses_direction = [mses_direction[i] for i in range(len(flips)) if flips[i]]
 
                 # f.write(f"{experiment.split('/')[1]},{drop},{error},{batch},{len(filtered_time)},{len(flips)}\n")
+                if show_speed:
+                    plt.plot(time[limit[0]:limit[1]], angular_speed, label="agent rotating")
 
                 if subplot and plot == "mse_positions":
                     plt.plot(time[limit[0]:limit[1]], mses, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
@@ -311,9 +312,6 @@ if __name__ == '__main__':
                     plt.plot(time[limit[0]:limit[1]], mses_direction, label=f"Batch {batch}: {len(filtered_time)}/{len(flips)}", alpha=0.5)
                     if show_flip:
                         plt.scatter(filtered_time, filtered_mses_direction, c="r", s=1, label="flip detected")
-
-                if show_speed:
-                    plt.plot(time[limit[0]:limit[1]], angular_speed)
 
                 # plt.show()
 
@@ -390,18 +388,19 @@ if __name__ == '__main__':
         plt.savefig(f"/home/quentin/Dev/argos3-ros-triangulation/src/simulation_launch/scripts/plot/plot_mse_positions.png", dpi=300)
     if not plot_grid and plot == "mse_directions":
         # Title
-        plt.title(f"Error of Direction (Distances Estimation, {'MDS' if mds else 'PF'})")
+        plt.title(f"Error of Direction (Displacement Estimation)")
         # plt.title(f"Error of Direction (4 Moving Agents, {'MDS' if mds else 'PF'})")
 
         # Add a redline at y = 0
-        plt.axhline(y=0, color='r', linestyle='--', label="perfect estimation")
+        plt.axhline(y=180, color='gray', linestyle='--')
+
 
         # Axis labels
         plt.xlabel("Time (s)")
         plt.ylabel("Error (°)")
 
         # Limit y-axis to -180/+180
-        # plt.ylim(-90, 90)
+        # plt.ylim(0, 250)
 
         # Legend
         plt.legend()

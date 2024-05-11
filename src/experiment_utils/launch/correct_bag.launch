@@ -1,0 +1,5 @@
+<launch>
+    <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
+
+    <node pkg="experiment_utils" type="correct_bag.py" name="correct_bag" output="screen" cwd="node" launch-prefix="$(arg venv)" args="" ></node>
+</launch>
