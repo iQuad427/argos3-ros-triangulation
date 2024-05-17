@@ -1,4 +1,6 @@
 import math
+from enum import Enum
+
 import numpy as np
 
 
@@ -195,3 +197,77 @@ def range_and_bearing(agent, direction, distances, historic, plot):
             )
 
     return _rab
+
+
+class DirectionsEnum(Enum):
+    DISTANCES = "distances"
+    DISPLACEMENT = "displacement"
+    PARTICLES = "particles"
+
+
+direction_history = []
+
+
+def add_direction(direction):
+    global direction_history
+
+    if direction is not None:
+        direction_history.insert(0, direction)
+        direction_history = direction_history[:3]
+
+    return direction_history
+
+
+def compute_angle_from_distances(plot, ref_distances, distances):
+    """
+    Generate a Direction message for the agent controller to head toward the right direction.
+
+    :param agent: index of the considered agent in the distance table
+    :param plot: the plot to take as reference for angles between agents
+    :param ref_distances: previous known distances to reference agent
+    :param distances: current distances to reference agent
+
+    :return: a Direction ROS message for the robot controller to adapt the direction of the robot
+    """
+    agent_vector = np.array([plot[0, 0], plot[0, 1]])
+    total_vector = np.array([0, 0])
+    for i in range(len(distances)):
+        direction = (agent_vector - np.array([plot[i, 0], plot[i, 1]]))
+        total_vector = total_vector - direction * (ref_distances[i] - distances[i])
+
+    return total_vector
+
+
+def compute_direction(embedding_hist, positions_hist, distances_hist, direction_type=None):
+    embedding_hist = [np.array(embedding) for embedding in embedding_hist]
+    positions_hist = [np.array(positions) for positions in positions_hist]
+    distances_hist = [np.array(distances) for distances in distances_hist]
+    
+    estimation = np.array([0, 0])
+
+    if direction_type == DirectionsEnum.DISTANCES:
+        # 1. From relative distance evolution
+        if len(embedding_hist) > 1 and len(distances_hist) > 1:
+            # Compute the average direction from the differences
+            estimation = compute_angle_from_distances(embedding_hist[0], distances_hist[0], distances_hist[-1])
+    elif direction_type == DirectionsEnum.DISPLACEMENT:
+        # 2. From historic of estimated positions
+        if len(positions_hist) > 1:
+            # Compute the average direction from position history
+            estimation = find_direction_vector_from_position_history(positions_hist)
+    elif direction_type == DirectionsEnum.PARTICLES:
+        # 3. From the particle filter estimated positions and angles
+        if all([position.shape[0] == 3 for position in positions_hist]):
+            # Compute the average direction from angles in position history
+            angles = np.array([position[2] for position in positions_hist])
+            estimation = np.mean(np.array([np.cos(angles), np.sin(angles)]), axis=1)
+
+    # Normalize each vector if non zero norm
+    if np.linalg.norm(estimation) != 0:
+        estimation /= np.linalg.norm(estimation)
+
+    direction_hist = add_direction(
+        estimation
+    )
+
+    return generate_weighted_vector(direction_hist)

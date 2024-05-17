@@ -1,0 +1,158 @@
+<?xml version="1.0" ?>
+<argos-configuration>
+
+    <!-- ************************* -->
+    <!-- * General configuration * -->
+    <!-- ************************* -->
+    <framework>
+        <system threads="0" />
+        <experiment length="&duration&"
+                    ticks_per_second="&iteration&"
+                    random_seed="&seed&" />
+    </framework>
+
+    <!-- *************** -->
+    <!-- * Controllers * -->
+    <!-- *************** -->
+    <controllers>
+        <simulation_controller id="fdc" library="/home/quentin/Dev/argos3-ros-triangulation/devel/lib/libsimulation_controller.so">
+            <actuators>
+                <!-- Differential steering actuators -->
+                <differential_steering implementation="default" />
+                <!-- Range and Bearing actuators -->
+                <range_and_bearing implementation="default" />
+            </actuators>
+            <sensors>
+                <!-- Proximity sensors -->
+                <footbot_proximity implementation="default" show_rays="true" />
+                <!-- Range and Bearing sensors -->
+                <range_and_bearing implementation="medium"
+                                   medium="rab"
+                                   noise_std_dev="&sensor_error&"
+                                   packet_drop_prob="&drop_rate&"
+                                   show_rays="true" />
+            </sensors>
+            <params alpha="7.5" delta="0.1" velocity="30" size="1000" num_robots="&n_robots&" start_time="&start_time&" />
+        </simulation_controller>
+    </controllers>
+
+    <!-- ****************** -->
+    <!-- * Loop functions * -->
+    <!-- ****************** -->
+    <loop_functions library="/home/quentin/Dev/argos3-ros-triangulation/devel/lib/libstatistics_loop_functions.so"
+                    label="statistics_loop_functions"
+                    num_robots="&n_robots&"
+                    start_time="&start_time&" />
+
+
+    <!-- *********************** -->
+    <!-- * Arena configuration * -->
+    <!-- *********************** -->
+    <arena size="5, 5, 1" center="0,0,0.5">
+
+        <box id="wall_north" size="4,0.1,0.5" movable="false">
+            <body position="0,2,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_south" size="4,0.1,0.5" movable="false">
+            <body position="0,-2,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_east" size="0.1,4,0.5" movable="false">
+            <body position="2,0,0" orientation="0,0,0" />
+        </box>
+        <box id="wall_west" size="0.1,4,0.5" movable="false">
+            <body position="-2,0,0" orientation="0,0,0" />
+        </box>
+
+        <foot-bot id="fbA" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="1.8,0.0,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbB" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="1.662983158520316,0.6888301782571616,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbC" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="1.2727922061357857,1.2727922061357855,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbD" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="0.6888301782571618,1.662983158520316,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbE" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="1.1021821192326179e-16,1.8,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbF" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-0.6888301782571615,1.662983158520316,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbG" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-1.2727922061357855,1.2727922061357857,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbH" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-1.662983158520316,0.6888301782571619,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbI" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-1.8,2.2043642384652358e-16,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbJ" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-1.6629831585203163,-0.6888301782571614,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbK" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-1.272792206135786,-1.2727922061357855,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbL" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-0.6888301782571626,-1.6629831585203159,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbM" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="-3.3065463576978537e-16,-1.8,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbN" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="0.688830178257162,-1.6629831585203159,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbO" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="1.2727922061357853,-1.272792206135786,0" />
+            <controller config="fdc" />
+        </foot-bot>
+        <foot-bot id="fbP" rab_range="1000" rab_data_size="1000" >
+            <body orientation="&orientation&,0,0" position="1.6629831585203159,-0.6888301782571628,0" />
+            <controller config="fdc" />
+        </foot-bot>
+    </arena>
+
+    <!-- ******************* -->
+    <!-- * Physics engines * -->
+    <!-- ******************* -->
+    <physics_engines>
+        <dynamics2d id="dyn2d" />
+    </physics_engines>
+
+    <!-- ********* -->
+    <!-- * Media * -->
+    <!-- ********* -->
+    <media>
+        <range_and_bearing id="rab" check_occlusions="false" />
+    </media>
+
+    <!-- ****************** -->
+    <!-- * Visualization * -->
+    <!-- ****************** -->
+    <visualization />
+<!--    <visualization>-->
+<!--        <qt-opengl autoplay="true">-->
+<!--            <camera>-->
+<!--                <placement idx="0" position="0,0,13" look_at="0,0,0" up="1,0,0" lens_focal_length="65" />-->
+<!--            </camera>-->
+<!--        </qt-opengl>-->
+<!--    </visualization>-->
+
+</argos-configuration>

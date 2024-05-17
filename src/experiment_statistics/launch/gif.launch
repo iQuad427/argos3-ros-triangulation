@@ -1,0 +1,4 @@
+<launch>
+    <arg name="venv" value="/home/quentin/Dev/argos3-ros-triangulation/venv/bin/python3" />
+    <node pkg="experiment_statistics" type="save_as_gif.py" name="compute_mse" output="screen" cwd="node" launch-prefix="$(arg venv)" ></node>
+</launch>

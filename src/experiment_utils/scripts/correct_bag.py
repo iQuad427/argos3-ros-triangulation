@@ -18,11 +18,16 @@ if __name__ == '__main__':
         "/epuck_40/odometry/filtered"
     ]
 
+    sensor_topics = [
+        "/init/sensor_read",
+        "/resp/sensor_read",
+    ]
+
     robots = [
-        "B",  # Don't know which robot is which
-        "C",
-        "D",
-        "E"   # This one is certain
+        "B",  # 17
+        "C",  # 37
+        "D",  # 38
+        "E"   # 40
     ]
 
     # For directories in experiments
@@ -60,7 +65,7 @@ if __name__ == '__main__':
                             for top in topics:
                                 msg.positions.append(
                                     CustomOdometry(
-                                        id=ord(robots[topics.index(top)]),
+                                        id=ord(robots[topics.index(top)]) - ord('B'),
                                         pose=dict_positions[top][-1].pose.pose
                                     )
                                 )
@@ -72,5 +77,13 @@ if __name__ == '__main__':
                             }
 
                         out_bag.write(topic, msg, t)
+                    elif topic in sensor_topics:
+                        msg.robot_id -= ord('B')
+                        for distance in msg.ranges:
+                            distance.other_robot_id -= ord('B')
+
+                        out_bag.write(topic, msg, t)
                     else:
                         out_bag.write(topic, msg, t)
+
+

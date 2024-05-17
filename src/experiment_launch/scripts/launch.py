@@ -2,6 +2,7 @@ import dataclasses
 import os
 import signal
 import subprocess
+import time
 from enum import Enum
 
 from experiment_utils.msg import Manage
@@ -31,11 +32,11 @@ def run_experiment(launch_cmd, bag_play, bag_record, topics, manager):
 
     # Run the command in a subprocess
     rosbag_record = subprocess.Popen(
-            f"rosbag record -O {bag_record} " + " ".join(topics),
+            f"rosbag record -O {bag_record} " + " ".join(topics) + " __name:=record",
             shell=True
         )
 
-    launch_process =  subprocess.Popen(
+    launch_process = subprocess.Popen(
             launch_cmd,
             shell=True
         )
@@ -47,7 +48,8 @@ def run_experiment(launch_cmd, bag_play, bag_record, topics, manager):
 
     # Stop recording through SIGINT
     launch_process.wait()
-    rosbag_record.kill()
+    os.system("rosnode kill /record")
+    rosbag_record.wait()
 
 
 class DirectionsEnum(Enum):
@@ -62,6 +64,8 @@ class DirectionsEnum(Enum):
 class AlgorithmEnum(Enum):
     MDS = "mds"
     PF = "particle_filter"
+    Trilateration = "trilateration"
+    Odometry = "odometry"
 
     def __str__(self):
         return self.value
@@ -74,6 +78,7 @@ class Config:
     offset: bool
     certainty: bool
     directions: DirectionsEnum
+    historic_size: int
 
 
 @dataclasses.dataclass
@@ -95,23 +100,38 @@ def main():
 
     seeds = [124]
     directions = [DirectionsEnum.DISPLACEMENT]
+    # directions = [DirectionsEnum.DISTANCES, DirectionsEnum.DISPLACEMENT, DirectionsEnum.PARTICLES]
+    historic_sizes = [5]
+    # historic_sizes = [1, 5, 10, 15, 20, 40]
     # seeds = [124, 42, 427, 97, 172]
 
     # TODO: add the possibility to launch multiple batch (seed in computation of the same experiment)
     batch = [1, 2, 3, 4, 5]  # Can use the same seeds as above, won't have any negative impact
+    experiments_to_compute = [
+        "exp_8",
+        "exp_9"
+    ]
 
     mds = True
     pf = True
+    trilateration = False
+    odometry = False
 
     experiment_duration = 120
 
-    mds_inits = [False, True]
-    mds_offsets = [False, True]
-    mds_certainties = [False, True]
+    mds_inits = [False]
+    # mds_inits = [True, False]
+    mds_offsets = [True]
+    # mds_offsets = [True, False]
+    mds_certainties = [False]
+    # mds_certainties = [True, False]
 
     pf_inits = [False]
-    pf_offsets = [False]
+    # pf_inits = [True, False]
+    pf_offsets = [True]
+    # pf_offsets = [True, False]
     pf_certainties = [False]
+    # pf_certainties = [True, False]
 
     n_particles = 5000
     agents_speed = 30
@@ -125,6 +145,16 @@ def main():
     for experiment in experiments_directories:
         # List files in the directory
         files = os.listdir(f"{input_directory}/{experiment}")
+
+        # Only add experiment if in the list of experiments to compute
+        compute = False
+        for exp in experiments_to_compute:
+            if exp in experiment:
+                compute = True
+                break
+
+        if not compute:
+            continue
 
         # Get the input bag (complete_*.bag)
         experiments[experiment] = [
@@ -154,7 +184,8 @@ def main():
                             init=init,
                             offset=offset,
                             certainty=certainty,
-                            directions=DirectionsEnum.DISPLACEMENT
+                            directions=DirectionsEnum.DISPLACEMENT,
+                            historic_size=10
                         )
                     ))
 
@@ -170,6 +201,7 @@ def main():
                             offset=offset,
                             certainty=certainty,
                             directions=DirectionsEnum.DISPLACEMENT,
+                            historic_size=10,
                             n_particles=n_particles,
                             agents_speed=agents_speed,
                             sensor_std_err=sensor_std_err,
@@ -177,13 +209,29 @@ def main():
                         )
                     ))
 
+    if trilateration:
+        algorithm_experiments.append((
+            AlgorithmEnum.Trilateration,
+            Config(
+                seed=42,
+                init=False,
+                offset=True,
+                certainty=False,
+                directions=DirectionsEnum.DISTANCES,
+                historic_size=10,
+            )
+        ))
+
     for experiment, inputs in experiments.items():
         for algorithm, config in algorithm_experiments:
             if stop:
                 break
 
             output_dir = f"{output_directory}/{experiment}"
-            output_dir += "/mds/mds" if algorithm == AlgorithmEnum.MDS else "/pf/pf"
+            if trilateration or odometry:
+                output_dir += "/trilateration/trilateration" if trilateration else "/odometry/odometry"
+            else:
+                output_dir += "/mds/mds" if algorithm == AlgorithmEnum.MDS else f"/pf_particles_{n_particles}_std_{sensor_std_err}_dt_{dt}/pf"
             output_dir += f"_init" if config.init else ""
             output_dir += f"_offset" if config.offset else ""
             output_dir += f"_certainty" if config.certainty else ""
@@ -199,27 +247,34 @@ def main():
             sub_experiments = []
             for seed in seeds:
                 for direction in directions:
-                    sub_experiments.append(
-                        (seed, direction)
-                    )
+                    for size in historic_sizes:
+                        sub_experiments.append(
+                            (seed, direction, size)
+                        )
 
             number_of_experiments = len(experiments) * len(algorithm_experiments) * len(sub_experiments)
 
-            for seed, direction in sub_experiments:
+            for seed, direction, size in sub_experiments:
                 count += 1
-                output_file = f"seed_{seed}_direction_{direction}.bag"
+                output_file = f"seed_{seed}_direction_{direction}_historic_{size}.bag"
+
+                config.directions = direction
+                config.historic_size = size
+                config.seed = seed
 
                 # If input file already exists, skip
                 if output_file in os.listdir(output_dir):
-                    print(f"SKIP: {count}/{number_of_experiments}, seed = {seed}...")
+                    print(f"SKIP: {count}/{number_of_experiments}, seed = {seed}, direction = {direction}, historic = {size}...")
                     continue
                 else:
-                    print(f"RUN: {algorithm}, {count}/{number_of_experiments}, seed = {seed}...")
+                    print(f"RUN: {algorithm}, {count}/{number_of_experiments}, seed = {seed}, direction = {direction}, historic = {size}...")
 
                 arguments = ""
 
-                arguments += f" b:=fbB"
+                arguments += f" id:=fbD"
                 arguments += f" n:=4"
+                if trilateration:
+                    arguments += f" beacons:=\"B,C,E\""
 
                 arguments += f" experiment_duration:=\"{experiment_duration + 1}\""
 
@@ -235,14 +290,19 @@ def main():
                 arguments += f" offset:=\"{config.offset}\""
                 arguments += f" certainty:=\"{config.certainty}\""
                 arguments += f" directions:=\"{config.directions}\""
+                arguments += f" historic_size:=\"{config.historic_size}\""
 
-                if isinstance(config, ParticleConfig) and algorithm == AlgorithmEnum.PF:
+                if isinstance(config, ParticleConfig):
                     arguments += f" n_particles:=\"{config.n_particles}\""
                     arguments += f" agents_speed:=\"{config.agents_speed}\""
                     arguments += f" sensor_std_err:=\"{config.sensor_std_err}\""
                     arguments += f" dt:=\"{dt}\""
 
                 launch_command = f"roslaunch experiment_launch {algorithm}_experiment.launch" + arguments
+                print("LAUNCH:", launch_command)
+
+                time.sleep(5)
+
                 run_experiment(
                     launch_cmd=launch_command,
                     bag_play=f"{input_dir}/{input_file}",

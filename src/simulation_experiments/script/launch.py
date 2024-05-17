@@ -42,12 +42,14 @@ def main():
     # Seed 5 : 172
 
     input_directory = "/home/quentin/Dev/argos3-ros-triangulation/src/simulation_experiments/output/directions"
-    seeds = ["124", "42", "427", "97", "172"]
-    # seeds = ["124"]
-    # drops = [0.50]
+    seeds = ["124"]
+    # seeds = ["124", "42", "427", "97", "172"]
     drops = [0.50]
-    errors = [0.00, 0.05, 0.10, 0.15]
+    # drops = [0.50]
+    errors = [0.10]
     # errors = [0.00]
+
+    n_robots = [4, 8, 12, 16]
 
     experiment_duration = 120
     experiment_start = 0

@@ -10,7 +10,8 @@ import rospy
 from experiment_utils.msg import Distances, Distance, Odometry, Positions, Manage
 from geometry_msgs.msg import Pose, Point, Quaternion
 
-from utils import MultiAgentParticleFilter, compute_direction, euler_to_quaternion, DirectionsEnum
+from utils import MultiAgentParticleFilter, euler_to_quaternion
+from direction import compute_direction, DirectionsEnum
 
 warnings.filterwarnings("ignore")
 
@@ -21,6 +22,8 @@ clock = pygame.time.Clock()
 # Distance Measurements
 distance_matrix = None
 certainty_matrix = None
+
+beacons_positions = {}
 
 # Running
 running = False
@@ -81,7 +84,7 @@ def add_distance(robot_idx, data: Distance):
     if distance_matrix is None:
         raise ValueError("Distance matrix and certainty matrix should be created at this point")
 
-    other_robot_idx = data.other_robot_id - ord('B')
+    other_robot_idx = data.other_robot_id
 
     x = robot_idx
     y = other_robot_idx
@@ -104,10 +107,20 @@ def sensor_callback(data, args):
         self_idx = args[0] - ord('B')
         add_distance(self_idx, data)
     elif isinstance(data, Distances):
-        robot_idx = data.robot_id - ord('B')
+        robot_idx = data.robot_id
 
         for robot in data.ranges:
             add_distance(robot_idx, robot)
+
+
+def beacons_callback(data):
+    global beacons_positions
+
+    for odometry in data.positions:
+        element = odometry.pose.position
+        element.x *= 100
+        element.y *= 100
+        beacons_positions[odometry.id] = element
 
 
 def create_matrix(n: int):
@@ -136,6 +149,7 @@ class Config:
     offset: bool
     certainty: bool
     directions: DirectionsEnum
+    historic_size: int
 
     # Particle Filter
     n_particles: int
@@ -149,7 +163,7 @@ def listener():
     global distance_matrix, certainty_matrix, running
 
     # Parse arguments
-    agent_id = rospy.get_param("b")
+    agent_id = rospy.get_param("id")
     self_idx = ord(agent_id[2])
 
     # Parse arguments
@@ -163,6 +177,7 @@ def listener():
         offset=rospy.get_param("offset"),
         certainty=rospy.get_param("certainty"),
         directions=DirectionsEnum(rospy.get_param("directions")),
+        historic_size=rospy.get_param("historic_size"),
         n_particles=rospy.get_param("n_particles"),
         agents_speed=rospy.get_param("agents_speed"),
         sensor_std_err=rospy.get_param("sensor_std_err"),
@@ -197,6 +212,7 @@ def listener():
 
     rospy.Subscriber(f'/init/sensor_read', Distances, sensor_callback, (self_idx,))
     rospy.Subscriber(f'/resp/sensor_read', Distances, sensor_callback, (self_idx,))
+    rospy.Subscriber(f'/experiment/positions', Positions, beacons_callback)
     positions_pub = rospy.Publisher(f'/compute/positions', Positions, queue_size=10)
 
     embedding_historic = []
@@ -223,19 +239,22 @@ def listener():
         position_estimation = compute_positions(new_dm, new_certainty, multi_agent_pf, config=config)
 
         # Update position historic
+        size = config.historic_size
+
         positions_historic.append(list(position_estimation[self_idx - ord('B')]))
-        positions_historic = positions_historic[-5:]
+        positions_historic = positions_historic[-size:]
 
         embedding_historic.append(np.copy(position_estimation))
-        embedding_historic = embedding_historic[-5:]
+        embedding_historic = embedding_historic[-size:]
 
         distances_historic.append(np.copy(new_dm[0]))
-        distances_historic = distances_historic[-5:]
+        distances_historic = distances_historic[-size:]
 
-        distance_direction, historic_direction, particle_direction = compute_direction(
+        direction = compute_direction(
             embedding_historic,
             positions_historic,
-            distances_historic
+            distances_historic,
+            direction_type=config.directions
         )
 
         # Save current estimation
@@ -246,8 +265,7 @@ def listener():
         positions_msg.header.stamp = rospy.Time.now()
 
         # Compute angle of the robot from the direction vector
-        direction = distance_direction
-        if direction is not None:
+        if np.linalg.norm(direction) > 0:
             direction_angle = np.arctan2(direction[1], direction[0])
         else:
             direction_angle = 0

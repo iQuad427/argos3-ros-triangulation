@@ -14,7 +14,7 @@
     <arg name="iteration_rate" default="10" />
 
     <arg name="n" default="4" />
-    <arg name="b" default="fbB" />
+    <arg name="id" default="fbD" />
     <arg name="beacons" default="Z" />
 
     <!-- Experiment -->
@@ -22,6 +22,7 @@
     <arg name="offset" default="False" />
     <arg name="certainty" default="False" />
     <arg name="directions" default="displacement" />
+    <arg name="historic_size" default="10" />
 
     <!-- Particle Filter -->
     <arg name="n_particles" default="5000" />
@@ -42,13 +43,14 @@
     <param name="iteration_rate" type="int" value="$(arg iteration_rate)" />
 
     <param name="n" type="int" value="$(arg n)" />
-    <param name="b" type="str" value="$(arg b)" />
+    <param name="id" type="str" value="$(arg id)" />
     <param name="beacons" type="str" value="$(arg beacons)" />
 
     <param name="init" type="bool" value="$(arg init)" />
     <param name="offset" type="bool" value="$(arg offset)" />
     <param name="certainty" type="bool" value="$(arg certainty)" />
     <param name="directions" type="str" value="$(arg directions)" />
+    <param name="historic_size" type="int" value="$(arg historic_size)" />
 
     <param name="n_particles" type="int" value="$(arg n_particles)" />
     <param name="agents_speed" type="int" value="$(arg agents_speed)" />

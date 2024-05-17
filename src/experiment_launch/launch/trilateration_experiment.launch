@@ -10,19 +10,25 @@
 
     <arg name="experiment_duration" default="10" />
     <arg name="experiment_start" default="0" />
-    <arg name="iteration_rate" default="10" />
     <arg name="random_seed" default="42" />
+    <arg name="iteration_rate" default="10" />
 
     <arg name="n" default="4" />
     <arg name="id" default="fbD" />
     <arg name="beacons" default="Z" />
 
     <!-- Experiment -->
-    <arg name="init" default="false" />
-    <arg name="offset" default="false" />
-    <arg name="certainty" default="false" />
+    <arg name="init" default="False" />
+    <arg name="offset" default="False" />
+    <arg name="certainty" default="False" />
     <arg name="directions" default="displacement" />
     <arg name="historic_size" default="10" />
+
+    <!-- Particle Filter -->
+    <arg name="n_particles" default="5000" />
+    <arg name="agents_speed" default="30" />
+    <arg name="sensor_std_err" default="10" />
+    <arg name="dt" default="0.1" />
 
     <param name="input_dir" type="str" value="$(arg input_dir)" />
     <param name="input_file" type="str" value="$(arg input_file)" />
@@ -46,6 +52,11 @@
     <param name="directions" type="str" value="$(arg directions)" />
     <param name="historic_size" type="int" value="$(arg historic_size)" />
 
-    <!-- fbA computation and statistics -->
-    <node pkg="experiment_compute" type="main_mds.py" name="mds" output="screen" cwd="node" launch-prefix="$(arg venv)"></node>
+    <param name="n_particles" type="int" value="$(arg n_particles)" />
+    <param name="agents_speed" type="int" value="$(arg agents_speed)" />
+    <param name="sensor_std_err" type="int" value="$(arg sensor_std_err)" />
+    <param name="dt" type="double" value="$(arg dt)" />
+
+    <!-- fbB computation and statistics -->
+    <node pkg="experiment_compute" type="main_trilateration.py" name="particle_filter" output="screen" cwd="node" launch-prefix="$(arg venv)"></node>
 </launch>

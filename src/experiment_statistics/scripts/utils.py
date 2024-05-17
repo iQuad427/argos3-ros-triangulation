@@ -6,7 +6,11 @@ import scipy.stats
 from numpy.linalg import svd, norm
 from numpy.random import randn, uniform
 
-from direction import generate_weighted_vector, find_direction_vector_from_position_history
+
+class DirectionsEnum(Enum):
+    DISTANCES = "distances"
+    DISPLACEMENT = "displacement"
+    PARTICLES = "particles"
 
 
 def find_rotation_matrix(X, Y, flipped=False):
@@ -48,11 +52,16 @@ def find_rotation_matrix(X, Y, flipped=False):
     return R, t
 
 
-def rotate_and_translate(reference, points, flipped=False):
-    rotation, _ = find_rotation_matrix(reference.T, points.T, flipped=flipped)
+def rotate_and_translate(reference, points, directions=None):
+    rotation, flip = find_rotation_matrix(reference.T, points.T)
 
     # Apply the rotation
     points_rotated = points @ rotation
+
+    # Also rotate the directions vector
+    directions_rotated = None
+    if directions is not None:
+        directions_rotated = directions @ rotation
 
     # First, find the centroid of the original points
     centroid = np.mean(reference, axis=0)
@@ -64,7 +73,10 @@ def rotate_and_translate(reference, points, flipped=False):
     translation = centroid - points_centroid
 
     # Translate the MDS points
-    return points_rotated + translation.T
+    points_translated = points_rotated + translation.T
+
+    return (points_translated, flip) if directions is None else (points_translated, directions_rotated, flip)
+
 
 
 def create_uniform_particles(x_range, y_range, hdg_range, n):
@@ -212,85 +224,21 @@ def euler_to_quaternion(roll, pitch, yaw):
     return x, y, z, w
 
 
-# Author: Danilo Motta  -- <ddanilomotta@gmail.com>
+def compute_angle_from_distances(plot, ref_distances, distances):
+    """
+    Generate a Direction message for the agent controller to head toward the right direction.
 
-# This is an implementation of the technique described in:
-# Sparse multidimensional scaling using landmark points
-# http://graphics.stanford.edu/courses/cs468-05-winter/Papers/Landmarks/Silva_landmarks5.pdf
-import scipy as sp
+    :param agent: index of the considered agent in the distance table
+    :param plot: the plot to take as reference for angles between agents
+    :param ref_distances: previous known distances to reference agent
+    :param distances: current distances to reference agent
 
+    :return: a Direction ROS message for the robot controller to adapt the direction of the robot
+    """
+    agent_vector = np.array([plot[0, 0], plot[0, 1]])
+    total_vector = np.array([0, 0])
+    for i in range(len(distances)):
+        direction = (agent_vector - np.array([plot[i, 0], plot[i, 1]]))
+        total_vector = total_vector - direction * (ref_distances[i] - distances[i])
 
-def MDS(D, dim=[]):
-    # Number of points
-    n = len(D)
-
-    # Centering matrix
-    H = - np.ones((n, n)) / n
-    np.fill_diagonal(H, 1 - 1 / n)
-    # YY^T
-    H = -H.dot(D ** 2).dot(H) / 2
-
-    # Diagonalize
-    evals, evecs = np.linalg.eigh(H)
-
-    # Sort by eigenvalue in descending order
-    idx = np.argsort(evals)[::-1]
-    evals = evals[idx]
-    evecs = evecs[:, idx]
-
-    # Compute the coordinates using positive-eigenvalued components only
-    w, = np.where(evals > 0)
-    if dim != []:
-        arr = evals
-        w = arr.argsort()[-dim:][::-1]
-        if np.any(evals[w] < 0):
-            print('Error: Not enough positive eigenvalues for the selected dim.')
-            return []
-    L = np.diag(np.sqrt(evals[w]))
-    V = evecs[:, w]
-    Y = V.dot(L)
-    return Y
-
-
-def landmark_MDS(D, lands, dim):
-    Dl = D[:, lands]
-    n = len(Dl)
-
-    # Centering matrix
-    H = - np.ones((n, n)) / n
-    np.fill_diagonal(H, 1 - 1 / n)
-    # YY^T
-    H = -H.dot(Dl ** 2).dot(H) / 2
-
-    # Diagonalize
-    evals, evecs = np.linalg.eigh(H)
-
-    # Sort by eigenvalue in descending order
-    idx = np.argsort(evals)[::-1]
-    evals = evals[idx]
-    evecs = evecs[:, idx]
-
-    # Compute the coordinates using positive-eigenvalued components only
-    w, = np.where(evals > 0)
-    if dim:
-        arr = evals
-        w = arr.argsort()[-dim:][::-1]
-        if np.any(evals[w] < 0):
-            print('Error: Not enough positive eigenvalues for the selected dim.')
-            return []
-    if w.size == 0:
-        print('Error: matrix is negative definite.')
-        return []
-
-    V = evecs[:, w]
-    L = V.dot(np.diag(np.sqrt(evals[w]))).T
-    N = D.shape[1]
-    Lh = V.dot(np.diag(1. / np.sqrt(evals[w]))).T
-    Dm = D - np.tile(np.mean(Dl, axis=1), (N, 1)).T
-    dim = w.size
-    X = -Lh.dot(Dm) / 2.
-    X -= np.tile(np.mean(X, axis=1), (N, 1)).T
-
-    _, evecs = sp.linalg.eigh(X.dot(X.T))
-
-    return (evecs[:, ::-1].T.dot(X)).T
+    return total_vector

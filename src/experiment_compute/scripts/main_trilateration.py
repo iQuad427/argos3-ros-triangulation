@@ -1,19 +1,23 @@
 #!/usr/bin/python3
+# To add trilateration with landmarks for experiment 5
+
+#!/usr/bin/python3
+
 import dataclasses
 import signal
-import sys
 import warnings
-from datetime import datetime
+from collections import defaultdict
 
 import numpy as np
 import pygame
 import rospy
+from easy_trilateration.least_squares import easy_least_squares
+from easy_trilateration.model import Circle
 from experiment_utils.msg import Distances, Distance, Odometry, Positions, Manage
 from geometry_msgs.msg import Pose, Point, Quaternion
-from sklearn.manifold import MDS
 
-from utils import euler_to_quaternion
 from direction import compute_direction, DirectionsEnum
+from utils import euler_to_quaternion
 
 warnings.filterwarnings("ignore")
 
@@ -44,55 +48,46 @@ def signal_handler(sig, frame):
     stop = True
 
 
-def compute_positions(distances, certainties, ref_plot, beacons=None, config=None):
-    if distances is not None:
-        # Update the data in the plot
-        # Make sure the matrix is symmetric
-        matrix = (distances + distances.T) / 2  # removed '/2' because triangular matrix
-        matrix_certainty = (certainties + certainties.T)
+def compute_positions(distances, certainties, beacons, config=None):
 
-        # Use sklearn MDS to reduce the dimensionality of the matrix
-        mds = MDS(
-            n_components=2,
-            dissimilarity='precomputed',
-            normalized_stress=False,
-            metric=True,
-            random_state=config.random_seed
-        )
+    matrix = np.copy(distances)
 
-        if config.offset:
-            # Remove 20 to all values
-            matrix = matrix - 20
+    # Update
+    if config.offset:
+        # Remove 20 to all values
+        matrix = matrix - 20
 
-            # 0 on the diagonal
-            np.fill_diagonal(matrix, 0)
+        # 0 on the diagonal
+        np.fill_diagonal(matrix, 0)
 
-            # Negative values to 0
-            matrix = np.where(matrix < 0, 0, matrix)
+        # Negative values to 0
+        matrix = np.where(matrix < 0, 0, matrix)
 
-        # print("Offset applied") if config.offset else print("No offset applied")
+    if config.certainty:
+        matrix[certainties < 0.5] = -1
 
-        weights = matrix_certainty if config.certainty else None
-        # print(f"Using weights") if config.certainty else print(f"Not using weights")
+    # Generate the circles for the trilateration
+    circles = defaultdict(list)
+    for i in range(matrix.shape[0]):
+        if i != config.agent_id:
+            continue
+        for j in range(matrix.shape[1]):
+            if j in beacons and j in beacons_positions and matrix[i, j] > 0:
+                circles[i].append(Circle(beacons_positions[j].x, beacons_positions[j].y, matrix[i, j]))
 
-        if config.init:
-            # print("Initialized MDS")
-            if ref_plot is None or ref_plot[(0, 0)] == .0:
-                embedding = mds.fit_transform(matrix, weight=weights)
-            else:
-                try:
-                    embedding = mds.fit_transform(matrix, weight=weights, init=ref_plot)
-                except:
-                    embedding = mds.fit_transform(matrix, weight=weights)
-        elif config.landmark:
-            # Apply landmark MDS
-            embedding = None
-            pass
+    positions = []
+    for i in range(distances.shape[0]):
+        if i == config.agent_id:
+            # Trilateration
+            if len(circles[i]) > 2:
+                estimate, stats = easy_least_squares(circles[i])
+                positions.append([estimate.center.x, estimate.center.y, 0])
+        elif i in beacons_positions:
+            positions.append([beacons_positions[i].x, beacons_positions[i].y, 0])
         else:
-            # print("Not initialized MDS")
-            embedding = mds.fit_transform(matrix, weight=weights)
+            positions.append([0, 0, 0])
 
-        return embedding
+    return np.array(positions)
 
 
 def add_distance(robot_idx, data: Distance):
@@ -153,10 +148,10 @@ def create_matrix(n: int):
     first_matrix = np.zeros((n, n))
     second_matrix = np.zeros((n, n))
 
-    first_matrix[mask] = 1
+    first_matrix[mask] = -1
     distance_matrix = first_matrix
 
-    second_matrix[mask] = 1
+    second_matrix[mask] = 0
     certainty_matrix = second_matrix
 
     if distance_matrix is None or certainty_matrix is None:
@@ -165,14 +160,19 @@ def create_matrix(n: int):
 
 @dataclasses.dataclass
 class Config:
+    # Agent
+    agent_id: int
+
+    # Experiment
     random_seed: int
     init: bool
     offset: bool
     certainty: bool
-    landmark: bool
     directions: DirectionsEnum
-    beacons: str
     historic_size: int
+
+    # Landmarks
+    beacons: str
 
 
 def listener():
@@ -185,36 +185,34 @@ def listener():
     # Parse arguments
     n_robots = rospy.get_param("n")
 
+    rospy.init_node('pf_compute', anonymous=True)
+
     config = Config(
+        agent_id=(ord(agent_id[2]) - ord('B')),
         random_seed=rospy.get_param("random_seed"),
         init=rospy.get_param("init"),
         offset=rospy.get_param("offset"),
         certainty=rospy.get_param("certainty"),
-        landmark=False,
         directions=DirectionsEnum(rospy.get_param("directions")),
         beacons=rospy.get_param("beacons"),
-        historic_size=rospy.get_param("historic_size")
+        historic_size=rospy.get_param("historic_size"),
     )
 
-    print("CONFIGURATION:", config.directions)
-
-    print("Running with the following configuration:")
-    print(config)
-
-    # Parse beacons
     if config.beacons != "Z":
         beacons = [ord(beacon) - ord('B') for beacon in config.beacons.split(",")]
     else:
         beacons = None
 
+    np.random.seed(config.random_seed)
+
+    print("Running with the following configuration:")
+    print(config)
 
     create_matrix(n_robots)
 
     if distance_matrix is None or certainty_matrix is None:
         raise ValueError(
             "Distance matrix should exist at this point, ensure that you called create_matrix() beforehand")
-
-    rospy.init_node('mds_compute', anonymous=True)
 
     # Subscribe to the manager command (to stop the node when needed)
     rospy.Subscriber('experiment/manage_command', Manage, callback)
@@ -229,41 +227,28 @@ def listener():
     distances_historic = []
 
     # Save previous values
-    previous_estimation = None  # Positions used to rotate the plot (avoid flickering when rendering in real time)
     previous_estimation = compute_positions(
         (distance_matrix + distance_matrix.T),
-        certainty_matrix,
-        previous_estimation,
+        (certainty_matrix + certainty_matrix.T),
         beacons=beacons,
         config=config
     )  # Current estimation of the positions
 
     iteration_rate = 30
-    crashed = False
-    while not crashed and not stop:
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or rospy.is_shutdown():
-                crashed = True
-
+    while not stop:
         if not running:
             clock.tick(iteration_rate)  # Limit frames per second
             continue
 
-        # Distance matrix should be symmetrical
-        new_dm = distance_matrix + distance_matrix.T
-
         # Update the data in the plot
+        new_dm = distance_matrix + distance_matrix.T
+        new_certainty = certainty_matrix + certainty_matrix.T
         position_estimation = compute_positions(
             new_dm,
-            certainty_matrix,
-            previous_estimation,
+            new_certainty,
             beacons=beacons,
             config=config
         )
-
-        # Save current estimation
-        previous_estimation = np.copy(position_estimation)
 
         # Update position historic
         size = config.historic_size
@@ -274,7 +259,7 @@ def listener():
         embedding_historic.append(np.copy(position_estimation))
         embedding_historic = embedding_historic[-size:]
 
-        distances_historic.append(np.copy(new_dm[self_idx - ord('B')]))
+        distances_historic.append(np.copy(new_dm[0]))
         distances_historic = distances_historic[-size:]
 
         direction = compute_direction(
@@ -299,6 +284,7 @@ def listener():
 
         for i, position in enumerate(position_estimation):
             if i != self_idx - ord('B'):
+                position = (beacons_positions[i].x, beacons_positions[i].y, 0)
                 angle = (0, 0, 0, 1)
             else:
                 angle = euler_to_quaternion(0, 0, direction_angle)
